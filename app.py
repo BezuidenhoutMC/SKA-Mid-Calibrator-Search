@@ -44,17 +44,8 @@ def setupSidebar():
     step=1.0
     )
 
-    Flux_lim = st.sidebar.number_input(
-    "Minimum Flux (Jy)",
-    min_value=0.0,
-    max_value = 100.0,
-    value=5.0,
-    step=1.0
-    )
-
     with st.sidebar.expander("ATCA", expanded=True): 
-        # st.sidebar.subheader("Flux selection")
-
+        {
         atca_bands = ["16cm", "4cm", "15mm", "7mm", "3mm"]
 
         atca_selected_bands = []
@@ -74,6 +65,7 @@ def setupSidebar():
                     step=0.1,
                     key=f"{band}_flux"
                 )
+        }
     with st.sidebar.expander("VLA", expanded=True): 
 
         vla_bands = ["P", "L", "C", "X", "U", "K", "Q"]
@@ -96,7 +88,25 @@ def setupSidebar():
                     key=f"{band}_flux"
                 )
 
-    return Flux_lim, Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits
+    pos_quality_option = st.sidebar.selectbox(
+    "Positional accuracy",
+        [
+            "A (<0.002 arcsec)",
+            "B (<0.01 arcsec)",
+            "C (<0.015 arcsec)",
+            "T (>0.015 arcsec)"
+        ]
+    )
+    posq_map = {
+        "A (<0.002 arcsec)": ["A"],
+        "B (<0.01 arcsec)": ["A", "B"],
+        "C (<0.015 arcsec)": ["A", "B", "C"],
+        "T (>0.015 arcsec)": ["A", "B", "C", "T"],
+        }
+
+    vla_pos_quality = posq_map[pos_quality_option]
+
+    return Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits, vla_pos_quality
 
 def ParseATCA(fname):
     try:
@@ -241,12 +251,12 @@ def ATCA_cuts(Dec_lim,Flux_lim,selected_bands,flux_limits, ATCAdb):
     st.success(f"{len(ATCA_CutFlux)} sources after Flux & Dec cuts")
     return ATCA_CutFlux
 
-def VLA_cuts(VLAdb, Dec_lim, vla_selected_bands, vla_flux_limits, quality_mode, pos_quality):
+def VLA_cuts(VLAdb, Dec_lim, vla_selected_bands, vla_flux_limits, vla_pos_quality, quality_mode):
     # -------------------------
     # Positional certainty filter
     # -------------------------
     VLAdb['header_posq'] = VLAdb['header_posq'].astype(str).str.strip().str.upper()
-    VLAdb = VLAdb[VLAdb['header_posq'] == pos_quality]
+    VLAdb = VLAdb[VLAdb['header_posq'].isin(vla_pos_quality)]
 
     # -------------------------
     # Convert RA/Dec to decimals
@@ -424,7 +434,7 @@ def main():
 
     VLAdb = ParseVLA('VLA Calibrator List 2.csv')
 
-    VLA_after_cuts = VLA_cuts(VLAdb, Dec_lim, vla_selected_bands, vla_flux_limits, quality_mode='any', pos_quality='A')
+    VLA_after_cuts = VLA_cuts(VLAdb, Dec_lim, vla_selected_bands, vla_flux_limits, vla_pos_quality, quality_mode='any')
     
     c_vla = SkyCoord(ra=VLA_after_cuts['ra_deg'].values * u.deg,
                    dec=VLA_after_cuts['dec_deg'].values * u.deg,
