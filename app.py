@@ -57,7 +57,7 @@ def setupSidebar():
             if use_band:
                 atca_selected_bands.append(band)
 
-                atca_flux_limits[band] = st.sidebar.number_input(
+                atca_flux_limits[band] = st.number_input(
                     f"{band} flux limit (Jy)",
                     min_value=0.0,
                     value=1.0,
@@ -78,7 +78,7 @@ def setupSidebar():
             if use_band:
                 vla_selected_bands.append(band)
 
-                vla_flux_limits[band] = st.sidebar.number_input(
+                vla_flux_limits[band] = st.number_input(
                     f"{band} flux limit (Jy)",
                     min_value=0.0,
                     value=1.0,
@@ -86,23 +86,23 @@ def setupSidebar():
                     key=f"{band}_flux"
                 )
 
-    pos_quality_option = st.selectbox(
-    "Positional accuracy",
-        [
-            "A (<0.002 arcsec)",
-            "B (<0.01 arcsec)",
-            "C (<0.015 arcsec)",
-            "T (>0.015 arcsec)"
-        ]
-    )
-    posq_map = {
-        "A (<0.002 arcsec)": ["A"],
-        "B (<0.01 arcsec)": ["A", "B"],
-        "C (<0.015 arcsec)": ["A", "B", "C"],
-        "T (>0.015 arcsec)": ["A", "B", "C", "T"],
-        }
+        pos_quality_option = st.selectbox(
+        "Positional accuracy",
+            [
+                "A (<0.002 arcsec)",
+                "B (<0.01 arcsec)",
+                "C (<0.015 arcsec)",
+                "T (>0.015 arcsec)"
+            ]
+        )
+        posq_map = {
+            "A (<0.002 arcsec)": ["A"],
+            "B (<0.01 arcsec)": ["A", "B"],
+            "C (<0.015 arcsec)": ["A", "B", "C"],
+            "T (>0.015 arcsec)": ["A", "B", "C", "T"],
+            }
 
-    vla_pos_quality = posq_map[pos_quality_option]
+        vla_pos_quality = posq_map[pos_quality_option]
 
     return Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits, vla_pos_quality
 
