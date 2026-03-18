@@ -104,7 +104,34 @@ def setupSidebar():
 
         vla_pos_quality = posq_map[pos_quality_option]
 
-    return Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits, vla_pos_quality
+        amp_quality_option = st.selectbox(
+        "Amplitude closure quality",
+            [
+                "P (<3%)",
+                "S (<10%)",
+                "W (>10%)"
+            ]
+        )
+        ampq_map = {
+            "P (<3%)": ["P"],
+            "S (<10%)": ["P", "S"],
+            "W (>10%)": ["P", "S", "W"],
+        }
+
+        vla_ampq = ampq_map[amp_quality_option]
+
+        quality_mode = st.selectbox(
+            "Amplitude closure quality configuration",
+            [
+                "Any",
+                "A",
+                "B",
+                "C",
+                "D"
+            ]
+        )
+
+    return Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode
 
 def ParseATCA(fname):
     try:
@@ -249,7 +276,7 @@ def ATCA_cuts(Dec_lim,selected_bands,flux_limits, ATCAdb):
     st.success(f"{len(ATCA_CutFlux)} sources after Flux & Dec cuts")
     return ATCA_CutFlux
 
-def VLA_cuts(VLAdb, Dec_lim, vla_selected_bands, vla_flux_limits, vla_pos_quality, quality_mode):
+def VLA_cuts(VLAdb, Dec_lim, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode):
     # -------------------------
     # Positional certainty filter
     # -------------------------
@@ -278,9 +305,8 @@ def VLA_cuts(VLAdb, Dec_lim, vla_selected_bands, vla_flux_limits, vla_pos_qualit
     # Build quality pivot
     # -------------------------
     def band_has_PS(row):
-        good = ['P', 'S']
         if quality_mode.lower() == 'any':
-            return any((row.get(col) in good) for col in ['A','B','C','D'])
+            return any((row.get(col) in vla_ampq) for col in ['A','B','C','D'])
         else:
             col = quality_mode.upper()
             return row.get(col) in good
@@ -416,7 +442,7 @@ def joinTables(atca_table,vla_table):
 
 def main():
     
-    Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits, vla_pos_quality = setupSidebar()
+    Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode = setupSidebar()
 
     ATCAdb= ParseATCA('ATCA Calibrators Database.csv')
     ATCA_after_cuts = ATCA_cuts(Dec_lim, atca_selected_bands, atca_flux_limits, ATCAdb)
@@ -432,7 +458,7 @@ def main():
 
     VLAdb = ParseVLA('VLA Calibrator List 2.csv')
 
-    VLA_after_cuts = VLA_cuts(VLAdb, Dec_lim, vla_selected_bands, vla_flux_limits, vla_pos_quality, quality_mode='any')
+    VLA_after_cuts = VLA_cuts(VLAdb, Dec_lim, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode)
     
     c_vla = SkyCoord(ra=VLA_after_cuts['ra_deg'].values * u.deg,
                    dec=VLA_after_cuts['dec_deg'].values * u.deg,
