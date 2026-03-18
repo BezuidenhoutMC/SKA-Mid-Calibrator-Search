@@ -307,7 +307,11 @@ def main():
     VLAdb = ParseVLA('VLA Calibrator List 2.csv')
 
     VLA_after_cuts = VLA_cuts(VLAdb,Flux_lim, Dec_lim, quality_mode='any')
-    st.write(len(VLA_after_cuts))
-    st.write('VLA AFTER CUTS')
-
+    
+    c_vla = SkyCoord(ra=VLA_after_cuts['ra_deg'].values * u.deg,
+                   dec=VLA_after_cuts['dec_deg'].values * u.deg,
+                   frame='icrs')
+    ra_vla_rad = c_vla.ra.wrap_at(180 * u.deg).radian
+    dec_vla_rad = c_vla.dec.radian
+    plotSkyCoords(ra_vla_rad,dec_vla_rad)
 main()
