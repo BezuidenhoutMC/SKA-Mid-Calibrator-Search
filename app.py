@@ -227,8 +227,6 @@ def ParseVLA(fn):
 
 def ATCA_cuts(Dec_lim,selected_bands,flux_limits, ATCAdb):
     # --- Dec cut ---
-    print('*************',Dec_lim)
-    Dec_lim = float(Dec_lim)
     ATCA_CutDec = ATCAdb[
         Angle(ATCAdb["Dec."], unit=u.deg).deg < Dec_lim
     ]
@@ -419,7 +417,7 @@ def joinTables(atca_table,vla_table):
 
 def main():
     
-    Flux_lim, Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits = setupSidebar()
+    Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits = setupSidebar()
 
     ATCAdb= ParseATCA('ATCA Calibrators Database.csv')
     ATCA_after_cuts = ATCA_cuts(Dec_lim, atca_selected_bands, atca_flux_limits, ATCAdb)
