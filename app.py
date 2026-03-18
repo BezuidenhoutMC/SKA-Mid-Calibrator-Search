@@ -37,10 +37,12 @@ def ParseATCA(fname):
 def ATCA_cuts(Dec_lim,Flux_lim,ATCAdb):
     ## Apply Declination & Flux density cuts at 4cm
     try: 
+        st.write(ATCAdb)
         ATCA_CutDec = ATCAdb[Angle(ATCAdb["Dec."],unit=u.deg).deg< Dec_lim]
+        st.write(ATCA_CutDec)
         ATCA_CutFlux = ATCA_CutDec[
             (ATCA_CutDec["4cm"] > Flux_lim) | (ATCA_CutDec["15mm"] > Flux_lim)]
-
+        st.write(ATCA_CutFlux)
         return ATCA_CutFlux
 
     except Exception as e:
