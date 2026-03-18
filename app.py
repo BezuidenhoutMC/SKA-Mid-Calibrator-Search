@@ -227,6 +227,7 @@ def ParseVLA(fn):
 
 def ATCA_cuts(Dec_lim,selected_bands,flux_limits, ATCAdb):
     # --- Dec cut ---
+    Dec_lim = float(Dec_lim)
     ATCA_CutDec = ATCAdb[
         Angle(ATCAdb["Dec."], unit=u.deg).deg < Dec_lim
     ]
