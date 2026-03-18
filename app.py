@@ -368,66 +368,64 @@ def plotSkyCoords(ra_rad,dec_rad):
     except Exception as e:
         st.error(f"Error plotting ATCA after cuts: {e}")
 
-def joinTables(atca_table,vla_table):
+def joinTables(atca_table, vla_table):
     atca = pd.DataFrame.copy(atca_table)
     vla = pd.DataFrame.copy(vla_table)
 
     # -------------------------
     # Clean VLA table
     # -------------------------
-    vla = vla.reset_index()          # move name from index to column
+    vla = vla.reset_index()
     vla['name'] = vla['name'].str.replace('"','').str.strip()
-
-    # keep flux columns
-    vla = vla[['name','ra_deg','dec_deg','flux_C','flux_X','flux_U']]
-
 
     # -------------------------
     # Clean ATCA table
     # -------------------------
-    # rename columns
     atca = atca.rename(columns={
-        'Name':'name',
-        'R.A.':'ra',
-        'Dec.':'dec'
+        'Name': 'name',
+        'R.A.': 'ra',
+        'Dec.': 'dec'
     })
 
-    # convert RA/Dec to degrees
-    coords = SkyCoord(atca['ra'], atca['dec'], unit=(u.hourangle, u.deg), frame='icrs')
+    coords = SkyCoord(atca['ra'], atca['dec'],
+                      unit=(u.hourangle, u.deg), frame='icrs')
 
     atca['ra_deg'] = coords.ra.deg
     atca['dec_deg'] = coords.dec.deg
 
     atca['name'] = atca['name'].str.strip()
 
-    # rename ATCA flux columns to consistent names
-    atca = atca.rename(columns={
-        '4cm':'flux_4cm',
-        '15mm':'flux_15mm'
-    })
-
-    # keep flux columns
-    atca = atca[['name','ra_deg','dec_deg','flux_4cm','flux_15mm']]
-
+    # Rename ATCA flux columns dynamically
+    for col in atca.columns:
+        if col in ["16cm", "4cm", "15mm", "7mm", "3mm"]:
+            atca = atca.rename(columns={col: f"flux_{col}"})
 
     # -------------------------
-    # Align column sets
+    # Identify columns
     # -------------------------
-    # ensure both tables contain the same columns
-    for col in ['flux_C','flux_X','flux_U']:
+    base_cols = ['name', 'ra_deg', 'dec_deg']
+
+    atca_flux_cols = [c for c in atca.columns if c.startswith("flux_")]
+    vla_flux_cols  = [c for c in vla.columns  if c.startswith("flux_")]
+
+    all_flux_cols = sorted(set(atca_flux_cols + vla_flux_cols))
+
+    # -------------------------
+    # Ensure both tables have same columns
+    # -------------------------
+    for col in all_flux_cols:
         if col not in atca:
             atca[col] = np.nan
-
-    for col in ['flux_4cm','flux_15mm']:
         if col not in vla:
             vla[col] = np.nan
 
-    # reorder columns consistently
-    cols = ['name','ra_deg','dec_deg','flux_4cm','flux_15mm','flux_C','flux_X','flux_U']
+    # -------------------------
+    # Keep only relevant columns
+    # -------------------------
+    final_cols = base_cols + all_flux_cols
 
-    atca = atca[cols]
-    vla = vla[cols]
-
+    atca = atca[final_cols]
+    vla  = vla[final_cols]
 
     # -------------------------
     # Merge catalogs
@@ -456,7 +454,7 @@ def main():
     ra_joint_rad = np.remainder(ra_joint_rad + np.pi, 2*np.pi) - np.pi
 
     plotSkyCoords(ra_joint_rad,dec_joint_rad)
-    st.success(f"{len(ATCA_CutFlux)} sources")
+    st.success(f"{len(ATCA_after_cuts)} sources")
     st.success(f"{len(VLA_after_cuts)} VLA sources")
     st.success(f"{len(joint_cal_list)} combined sources")
 
