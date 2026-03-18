@@ -36,7 +36,7 @@ def ParseATCA(fname):
 
 def ATCA_cuts(Dec_lim,Flux_lim,ATCAdb):
     ## Apply Declination & Flux density cuts at 4cm
-    try: 
+    # try: 
         st.write(ATCAdb)
         ATCA_CutDec = ATCAdb[Angle(ATCAdb["Dec."],unit=u.deg).deg< Dec_lim]
         st.write(ATCA_CutDec)
@@ -45,8 +45,8 @@ def ATCA_cuts(Dec_lim,Flux_lim,ATCAdb):
         st.write(ATCA_CutFlux)
         return ATCA_CutFlux
 
-    except Exception as e:
-        st.error(f"Error making ATCA cuts {e}")
+    # except Exception as e:
+    #     st.error(f"Error making ATCA cuts {e}")
 
 def plotSkyCoords(ra_rad,dec_rad):
     ## Plot ATCA catalog after cuts
