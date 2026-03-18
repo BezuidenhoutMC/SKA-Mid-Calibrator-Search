@@ -52,7 +52,7 @@ def setupSidebar():
     step=1.0
     )
 
-    st.sidebar.subheader("Flux band selection")
+    st.sidebar.subheader("ATCA bands selection")
 
     use_16cm = st.sidebar.checkbox("16 cm", value=False)
     use_4cm  = st.sidebar.checkbox("4 cm", value=True)
@@ -71,7 +71,17 @@ def setupSidebar():
     if use_3mm:
         selected_bands.append("3mm")
 
-    return Flux_lim, Dec_lim, selected_bands
+    st.sidebar.subheader("Flux limits per band (Jy)")
+
+    flux_limits = {
+    "16cm": st.sidebar.number_input("16 cm", min_value=0.0, value=1.0, step=0.1),
+    "4cm":  st.sidebar.number_input("4 cm",  min_value=0.0, value=1.0, step=0.1),
+    "15mm": st.sidebar.number_input("15 mm", min_value=0.0, value=1.0, step=0.1),
+    "7mm":  st.sidebar.number_input("7 mm",  min_value=0.0, value=1.0, step=0.1),
+    "3mm":  st.sidebar.number_input("3 mm",  min_value=0.0, value=1.0, step=0.1),
+}
+
+    return Flux_lim, Dec_lim, selected_bands, flux_limits
 
 def ParseATCA(fname):
     try:
@@ -191,22 +201,25 @@ def ParseVLA(fn):
     VLAdb = pd.DataFrame.from_records(records)
     return VLAdb
 
-def ATCA_cuts(Dec_lim,Flux_lim,selected_bands,ATCAdb):
+def ATCA_cuts(Dec_lim,Flux_lim,selected_bands,flux_limits, ATCAdb):
     # --- Dec cut ---
     ATCA_CutDec = ATCAdb[
         Angle(ATCAdb["Dec."], unit=u.deg).deg < Dec_lim
     ]
 
-    # --- Flux cut ---
+    # --- Flux cut (ALL selected bands must pass) ---
     if len(selected_bands) == 0:
-        # No bands selected → don't apply flux cut
         ATCA_CutFlux = ATCA_CutDec
     else:
         flux_mask = np.ones(len(ATCA_CutDec), dtype=bool)
 
         for band in selected_bands:
             if band in ATCA_CutDec.columns:
-                flux_mask &= (ATCA_CutDec[band] > Flux_lim)
+                limit = flux_limits[band]
+                flux_mask &= (ATCA_CutDec[band] > limit)
+            else:
+                # If a selected band is missing, fail the condition
+                flux_mask &= False
 
         ATCA_CutFlux = ATCA_CutDec[flux_mask]
 
@@ -398,10 +411,10 @@ def joinTables(atca_table,vla_table):
 
 def main():
     
-    Flux_lim, Dec_lim, selected_bands = setupSidebar()
+    Flux_lim, Dec_lim, selected_bands,flux_limits = setupSidebar()
 
     ATCAdb= ParseATCA('ATCA Calibrators Database.csv')
-    ATCA_after_cuts = ATCA_cuts(Dec_lim,Flux_lim, selected_bands, ATCAdb)
+    ATCA_after_cuts = ATCA_cuts(Dec_lim,Flux_lim, selected_bands, flux_limits, ATCAdb)
 
     ra_vals = Angle(ATCA_after_cuts["R.A."], unit=u.hourangle)
     dec_vals = Angle(ATCA_after_cuts["Dec."], unit=u.degree)
