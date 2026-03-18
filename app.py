@@ -359,7 +359,7 @@ def VLA_cuts(VLAdb, Dec_lim, vla_selected_bands, vla_flux_limits, vla_pos_qualit
 def plotSkyCoords(ra_rad, dec_rad):
     try:
         fig, ax = plt.subplots(
-            figsize=(8, 4.2),
+            figsize=(10, 6),
             subplot_kw=dict(projection="mollweide")
         )
 
@@ -487,9 +487,19 @@ def main():
     ra_joint_rad = np.remainder(ra_joint_rad + np.pi, 2*np.pi) - np.pi
 
     plotSkyCoords(ra_joint_rad,dec_joint_rad)
+    st.dataframe(joint_cal_list, height=600)    
+    csv = joint_cal_list.to_csv(index=False)
+
+
     st.success(f"{len(ATCA_after_cuts)} ATCA sources")
     st.success(f"{len(VLA_after_cuts)} VLA sources")
     st.success(f"{len(joint_cal_list)} combined sources")
 
-    st.write(joint_cal_list)
+
+    st.download_button(
+        label="Download calibrator list as CSV",
+        data=csv,
+        file_name="calibrators.csv",
+        mime="text/csv",
+    )
 main()
