@@ -273,7 +273,6 @@ def ATCA_cuts(Dec_lim,selected_bands,flux_limits, ATCAdb):
 
         ATCA_CutFlux = ATCA_CutDec[flux_mask]
 
-    st.success(f"{len(ATCA_CutFlux)} sources after Flux & Dec cuts")
     return ATCA_CutFlux
 
 def VLA_cuts(VLAdb, Dec_lim, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode):
@@ -360,7 +359,7 @@ def VLA_cuts(VLAdb, Dec_lim, vla_selected_bands, vla_flux_limits, vla_pos_qualit
 def plotSkyCoords(ra_rad,dec_rad):
     ## Plot ATCA catalog after cuts
     try:
-        fig, ax = plt.subplots(figsize=(8, 4.2), subplot_kw=dict(projection="mollweide"))
+        fig, ax = plt.subplots(figsize=(6, 4.2), subplot_kw=dict(projection="mollweide"))
         ax.grid(True)
         ax.scatter(ra_rad, dec_rad, marker="o", s=2, alpha=0.3)
         fig.subplots_adjust(top=0.95, bottom=0.0)
@@ -447,33 +446,18 @@ def main():
     ATCAdb= ParseATCA('ATCA Calibrators Database.csv')
     ATCA_after_cuts = ATCA_cuts(Dec_lim, atca_selected_bands, atca_flux_limits, ATCAdb)
 
-    ra_vals = Angle(ATCA_after_cuts["R.A."], unit=u.hourangle)
-    dec_vals = Angle(ATCA_after_cuts["Dec."], unit=u.degree)
-
-    c = SkyCoord(ra=ra_vals, dec=dec_vals, frame='icrs')
-    ra_rad = c.ra.wrap_at(180 * u.deg).radian
-    dec_rad = c.dec.radian
-
-    # plotSkyCoords(ra_rad,dec_rad)
-
     VLAdb = ParseVLA('VLA Calibrator List 2.csv')
 
     VLA_after_cuts = VLA_cuts(VLAdb, Dec_lim, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode)
     
-    c_vla = SkyCoord(ra=VLA_after_cuts['ra_deg'].values * u.deg,
-                   dec=VLA_after_cuts['dec_deg'].values * u.deg,
-                   frame='icrs')
-    ra_vla_rad = c_vla.ra.wrap_at(180 * u.deg).radian
-    dec_vla_rad = c_vla.dec.radian
-    # plotSkyCoords(ra_vla_rad,dec_vla_rad)
-    st.success(f"{len(VLA_after_cuts)} VLA sources after Flux & Dec cuts")
-
     joint_cal_list = joinTables(ATCA_after_cuts,VLA_after_cuts)
     ra_joint_rad = np.radians(joint_cal_list['ra_deg'].values)
     dec_joint_rad = np.radians(joint_cal_list['dec_deg'].values)
     ra_joint_rad = np.remainder(ra_joint_rad + np.pi, 2*np.pi) - np.pi
 
     plotSkyCoords(ra_joint_rad,dec_joint_rad)
-    st.success(f"{len(joint_cal_list)} joint sources after Flux & Dec cuts")
+    st.success(f"{len(ATCA_CutFlux)} sources")
+    st.success(f"{len(VLA_after_cuts)} VLA sources")
+    st.success(f"{len(joint_cal_list)} combined sources")
 
 main()
