@@ -314,4 +314,6 @@ def main():
     ra_vla_rad = c_vla.ra.wrap_at(180 * u.deg).radian
     dec_vla_rad = c_vla.dec.radian
     plotSkyCoords(ra_vla_rad,dec_vla_rad)
+    st.success(f"{len(VLA_after_cuts)} VLA sources after Flux & Dec cuts")
+
 main()
