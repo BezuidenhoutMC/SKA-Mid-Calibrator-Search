@@ -73,7 +73,7 @@ def setupSidebar():
                 step=0.1,
                 key=f"{band}_flux"
             )
-    }
+
 
     return Flux_lim, Dec_lim, selected_bands, flux_limits
 
