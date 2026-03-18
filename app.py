@@ -55,7 +55,7 @@ try:
 
     ATCA_CutDec = ATCAdb[Angle(ATCAdb["Dec."],unit=u.deg).deg< Dec_lim]
     ATCA_CutF4cm = ATCA_CutDec[
-        (ATCA_CutDec["4cm"] > Flux_lim) | (ATCA_CutDec["15mm"] > Flux_lim)
+        (ATCA_CutDec["4cm"] > Flux_lim) | (ATCA_CutDec["15mm"] > Flux_lim)]
 
 except Exception as e:
     st.error(f"Error making ATCA cuts {e}")
