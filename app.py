@@ -51,8 +51,8 @@ def setupSidebar():
         atca_flux_limits = {}
 
         for band in atca_bands:
-            # st.sidebar.markdown(f"**{band}**")
-            use_band = st.sidebar.checkbox(f"{band}", value=(band in ["15mm", "4cm"]))
+            # st.markdown(f"**{band}**")
+            use_band = st.checkbox(f"{band}", value=(band in ["15mm", "4cm"]))
 
             if use_band:
                 atca_selected_bands.append(band)
@@ -66,15 +66,14 @@ def setupSidebar():
                 )
 
     with st.sidebar.expander("VLA", expanded=True): 
-
         vla_bands = ["P", "L", "C", "X", "U", "K", "Q"]
 
         vla_selected_bands = []
         vla_flux_limits = {}
 
         for band in vla_bands:
-            # st.sidebar.markdown(f"**{band}**")
-            use_band = st.sidebar.checkbox(f"{band}", value=(band in ["C", "X", "U"]))
+            # st.markdown(f"**{band}**")
+            use_band = st.checkbox(f"{band}", value=(band in ["C", "X", "U"]))
 
             if use_band:
                 vla_selected_bands.append(band)
@@ -87,7 +86,7 @@ def setupSidebar():
                     key=f"{band}_flux"
                 )
 
-    pos_quality_option = st.sidebar.selectbox(
+    pos_quality_option = st.selectbox(
     "Positional accuracy",
         [
             "A (<0.002 arcsec)",
