@@ -356,17 +356,50 @@ def VLA_cuts(VLAdb, Dec_lim, vla_selected_bands, vla_flux_limits, vla_pos_qualit
 
     return sel
 
-def plotSkyCoords(ra_rad,dec_rad):
-    ## Plot ATCA catalog after cuts
+def plotSkyCoords(ra_rad, dec_rad):
     try:
-        fig, ax = plt.subplots(figsize=(6, 4.2), subplot_kw=dict(projection="mollweide"))
-        ax.grid(True)
-        ax.scatter(ra_rad, dec_rad, marker="o", s=2, alpha=0.3)
-        fig.subplots_adjust(top=0.95, bottom=0.0)
-        ax.set_title('ATCA Calibrators (after cut)')
-        st.pyplot(fig)
+        fig, ax = plt.subplots(
+            figsize=(8, 4.2),
+            subplot_kw=dict(projection="mollweide")
+        )
+
+        # --- Transparent background ---
+        fig.patch.set_alpha(0)
+        ax.set_facecolor("none")
+
+        # --- Scatter ---
+        ax.scatter(
+            ra_rad,
+            dec_rad,
+            marker="o",
+            s=4,                
+            alpha=0.6,
+            color="white"       
+        )
+
+        # --- Grid styling ---
+        ax.grid(True, color="white", alpha=0.2, linestyle="--")
+
+        # --- Tick + label colors ---
+        ax.tick_params(colors="white")
+
+        # Mollweide axes labels
+        ax.set_xticklabels(ax.get_xticklabels(), color="white")
+        ax.set_yticklabels(ax.get_yticklabels(), color="white")
+        ax.invert_xaxis()
+
+        # --- Title ---
+        ax.set_title("Calibrators After Cuts", color="white", pad=20)
+
+        # --- Layout ---
+        fig.subplots_adjust(top=0.9, bottom=0.05)
+
+        col1, col2, col3 = st.columns([1, 3, 1])
+        with col2:
+            st.pyplot(fig, use_container_width=True)
+
     except Exception as e:
-        st.error(f"Error plotting ATCA after cuts: {e}")
+        st.error(f"Error plotting: {e}")
 
 def joinTables(atca_table, vla_table):
     atca = pd.DataFrame.copy(atca_table)
@@ -454,8 +487,9 @@ def main():
     ra_joint_rad = np.remainder(ra_joint_rad + np.pi, 2*np.pi) - np.pi
 
     plotSkyCoords(ra_joint_rad,dec_joint_rad)
-    st.success(f"{len(ATCA_after_cuts)} sources")
+    st.success(f"{len(ATCA_after_cuts)} ATCA sources")
     st.success(f"{len(VLA_after_cuts)} VLA sources")
     st.success(f"{len(joint_cal_list)} combined sources")
 
+    st.write(joint_cal_list)
 main()
