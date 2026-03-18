@@ -52,7 +52,7 @@ except Exception as e:
 try: 
     st.sidebar.header("Filter settings")
 
-    Dec_lim = st.sidebar.slider(
+    Dec_lim = st.sidebar.number_input(
     "Minimum Declination (deg)",
     min_value=-90.0,
     max_value=90.0,
@@ -60,7 +60,7 @@ try:
     step=1.0
 )
 
-    Flux_lim = st.sidebar.number_input(
+    Flux_lim = st.sidebar.slider(
     "Minimum Flux (Jy)",
     min_value=0.0,
     value=5.0,
@@ -89,7 +89,7 @@ try:
     fig.subplots_adjust(top=0.95, bottom=0.0)
     ax.set_title('ATCA Calibrators (after cut)')
     st.pyplot(fig)
-    print(len(ATCA_CutF4cm), 'sources after 4cm & 16cm Flux & Dec cuts')
-    print(ATCA_CutF4cm)
+    st.success(len(ATCA_CutF4cm), 'sources after 4cm & 16cm Flux & Dec cuts')
+    st.write(ATCA_CutF4cm)
 except Exception as e:
     st.error(f"Error plotting ATCA after cuts: {e}")
