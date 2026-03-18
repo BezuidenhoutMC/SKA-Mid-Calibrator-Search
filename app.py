@@ -359,7 +359,7 @@ def VLA_cuts(VLAdb, Dec_lim, vla_selected_bands, vla_flux_limits, vla_pos_qualit
 def plotSkyCoords(ra_rad, dec_rad):
     try:
         fig, ax = plt.subplots(
-            figsize=(10, 6),
+            figsize=(15, 9),
             subplot_kw=dict(projection="mollweide")
         )
 
@@ -389,7 +389,7 @@ def plotSkyCoords(ra_rad, dec_rad):
         # ax.invert_xaxis()
 
         # --- Title ---
-        ax.set_title("Calibrators After Cuts", color="white", pad=20)
+        ax.set_title("Calibrators after all cuts", color="white", pad=20)
 
         # --- Layout ---
         fig.subplots_adjust(top=0.9, bottom=0.05)
