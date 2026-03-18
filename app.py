@@ -52,30 +52,51 @@ def setupSidebar():
     step=1.0
     )
 
-    st.sidebar.subheader("Flux selection")
+    with st.sidebar.expander("ATCA", expanded=True): 
+        # st.sidebar.subheader("Flux selection")
 
-    bands = ["16cm", "4cm", "15mm", "7mm", "3mm"]
+        atca_bands = ["16cm", "4cm", "15mm", "7mm", "3mm"]
 
-    selected_bands = []
-    flux_limits = {}
+        atca_selected_bands = []
+        atca_flux_limits = {}
 
-    for band in bands:
-        st.sidebar.markdown(f"**{band}**")
-        use_band = st.sidebar.checkbox(f"{band}", value=(band in ["16cm", "4cm"]))
+        for band in atca_bands:
+            # st.sidebar.markdown(f"**{band}**")
+            use_band = st.sidebar.checkbox(f"{band}", value=(band in ["15mm", "4cm"]))
 
-        if use_band:
-            selected_bands.append(band)
+            if use_band:
+                atca_selected_bands.append(band)
 
-            flux_limits[band] = st.sidebar.number_input(
-                f"{band} flux limit (Jy)",
-                min_value=0.0,
-                value=1.0,
-                step=0.1,
-                key=f"{band}_flux"
-            )
+                atca_flux_limits[band] = st.sidebar.number_input(
+                    f"{band} flux limit (Jy)",
+                    min_value=0.0,
+                    value=1.0,
+                    step=0.1,
+                    key=f"{band}_flux"
+                )
+    with st.sidebar.expander("VLA", expanded=True): 
 
+        vla_bands = ["P", "L", "C", "X", "U", "K", "Q"]
 
-    return Flux_lim, Dec_lim, selected_bands, flux_limits
+        vla_selected_bands = []
+        vla_flux_limits = {}
+
+        for band in vla_bands:
+            # st.sidebar.markdown(f"**{band}**")
+            use_band = st.sidebar.checkbox(f"{band}", value=(band in ["C", "X", "U"]))
+
+            if use_band:
+                vla_selected_bands.append(band)
+
+                vla_flux_limits[band] = st.sidebar.number_input(
+                    f"{band} flux limit (Jy)",
+                    min_value=0.0,
+                    value=1.0,
+                    step=0.1,
+                    key=f"{band}_flux"
+                )
+
+    return Flux_lim, Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits
 
 def ParseATCA(fname):
     try:
@@ -220,19 +241,15 @@ def ATCA_cuts(Dec_lim,Flux_lim,selected_bands,flux_limits, ATCAdb):
     st.success(f"{len(ATCA_CutFlux)} sources after Flux & Dec cuts")
     return ATCA_CutFlux
 
-def VLA_cuts(VLAdb,Flux_lim, Dec_lim, quality_mode):
-        # -------------------------
+def VLA_cuts(VLAdb, Dec_lim, vla_selected_bands, vla_flux_limits, quality_mode, pos_quality):
+    # -------------------------
     # Positional certainty filter
     # -------------------------
     VLAdb['header_posq'] = VLAdb['header_posq'].astype(str).str.strip().str.upper()
-    print("Unique canonical source names:",VLAdb['name'].nunique())
-    VLAdb = VLAdb[VLAdb['header_posq'] == 'A']
-
-    print("Unique canonical source names with positional certainty A:",
-        VLAdb['name'].nunique())
+    VLAdb = VLAdb[VLAdb['header_posq'] == pos_quality]
 
     # -------------------------
-    # Convert RA/Dec to decimals (use canonical header RA/Dec)
+    # Convert RA/Dec to decimals
     # -------------------------
     VLAdb = VLAdb.copy()
     VLAdb['ra_deg'] = VLAdb['ra'].apply(ra_to_deg)
@@ -241,20 +258,19 @@ def VLA_cuts(VLAdb,Flux_lim, Dec_lim, quality_mode):
     # -------------------------
     # Build flux pivot (one row per canonical source)
     # -------------------------
-    # Normalize receiver and quality character columns
     VLAdb['receiver'] = VLAdb['receiver'].str.strip().str.upper()
     for col in ['A','B','C','D']:
         VLAdb[col] = VLAdb[col].astype(str).str.strip().str.upper().replace({'NAN': np.nan})
 
-    # pivot flux table
-    flux_pivot = VLAdb.pivot_table(index='name', columns='receiver', values='flux', aggfunc='max')
+    flux_pivot = VLAdb.pivot_table(
+        index='name', columns='receiver', values='flux', aggfunc='max'
+    )
 
-    # Build a per-source-per-band "P-quality" boolean using A-D columns
-    # Two possible modes: 'any' => True if any of A/B/C/D == 'P' or 'S';
-    # or a specific column: 'A','B','C' or 'D'
+    # -------------------------
+    # Build quality pivot
+    # -------------------------
     def band_has_PS(row):
-        good = ['P', 'S']   # acceptable amplitude closure quality
-
+        good = ['P', 'S']
         if quality_mode.lower() == 'any':
             return any((row.get(col) in good) for col in ['A','B','C','D'])
         else:
@@ -262,60 +278,47 @@ def VLA_cuts(VLAdb,Flux_lim, Dec_lim, quality_mode):
             return row.get(col) in good
 
     VLAdb['quality_PS'] = VLAdb.apply(band_has_PS, axis=1)
-
-    # Now pivot quality into per-source receiver columns too (True/False)
-    quality_pivot = VLAdb.pivot_table(index='name', columns='receiver', values='quality_PS', aggfunc='max')  # max on booleans = any True
-
-    # -------------------------
-    # Diagnostics: show how many sources have P in C & X
-    # -------------------------
-    # print("Receivers found (columns in flux_pivot):", list(flux_pivot.columns))
-    # print("Number of sources with any flux entry (unique names):", VLAdb['name'].nunique())
-    # Count sources with P in C and X (existence)
-    has_C_P = 'C' in quality_pivot.columns and quality_pivot['C'].sum()
-    has_X_P = 'X' in quality_pivot.columns and quality_pivot['X'].sum()
-    # print("Sources with P in C (count):", int(has_C_P or 0))
-    # print("Sources with P in X (count):", int(has_X_P or 0))
+    quality_pivot = VLAdb.pivot_table(
+        index='name', columns='receiver', values='quality_PS', aggfunc='max'
+    ).fillna(False)
 
     # -------------------------
-    # Example selection: require flux > Flux_lim in BOTH C and X AND P-quality in both (per chosen quality_mode)
+    # Apply flux & quality cuts dynamically on selected bands
     # -------------------------
-    # treat missing values as 0 / False
-    c_flux = flux_pivot.get('C', pd.Series(dtype=float)).fillna(0.0)
-    x_flux = flux_pivot.get('X', pd.Series(dtype=float)).fillna(0.0)
-    u_flux = flux_pivot.get('U', pd.Series(dtype=float)).fillna(0.0)
+    if len(vla_selected_bands) == 0:
+        valid_names = flux_pivot.index  # no flux restriction
+    else:
+        flux_mask = pd.Series(True, index=flux_pivot.index)
+        quality_mask = pd.Series(True, index=flux_pivot.index)
 
-    c_quality = quality_pivot.get('C', pd.Series(dtype=bool)).fillna(False)
-    x_quality = quality_pivot.get('X', pd.Series(dtype=bool)).fillna(False)
-    u_quality = quality_pivot.get('U', pd.Series(dtype=bool)).fillna(False)
+        for band in vla_selected_bands:
+            col = band.upper()
+            # Treat missing columns as zeros / False
+            band_flux = flux_pivot.get(col, pd.Series(0.0, index=flux_pivot.index)).fillna(0.0)
+            band_quality = quality_pivot.get(col, pd.Series(False, index=flux_pivot.index)).fillna(False)
 
-    valid_names = c_flux.index[
-        ((c_flux > Flux_lim) |
-        (x_flux > Flux_lim) |
-        (u_flux > Flux_lim)) &
-        ((c_quality) |
-        (x_quality) |
-        (u_quality))
-    ]
-    # print("Valid names satisfying Flux >1 Jy and P/S-quality in C, X or U:", len(valid_names))
+            flux_limit = vla_flux_limits.get(band, 0.0)
 
-    # apply declination cut on canonical header dec (we have dec_deg per band row, so pick unique header per name)
-    # get unique canonical header (since we used .drop_duplicates earlier approach elsewhere, here we compute per-name median)
+            flux_mask &= (band_flux > flux_limit)
+            quality_mask &= band_quality
+
+        # Only keep sources passing **all selected bands** AND quality
+        valid_names = flux_pivot.index[flux_mask & quality_mask]
+
+    # -------------------------
     # Build per-source coordinate table
+    # -------------------------
     per_name = VLAdb.groupby('name').agg({
         'ra_deg': 'median',
         'dec_deg': 'median'
     })
 
-    # Add flux columns for C, X, U bands
-    per_name['flux_C'] = flux_pivot.get('C')
-    per_name['flux_X'] = flux_pivot.get('X')
-    per_name['flux_U'] = flux_pivot.get('U')
+    # Add flux columns for selected bands (optional, for diagnostics)
+    for band in vla_selected_bands:
+        per_name[f'flux_{band}'] = flux_pivot.get(band.upper())
 
-    # final selection dataframe (unique names)
+    # Final selection with Dec cut
     sel = per_name.loc[per_name.index.intersection(valid_names)].copy()
-
-    # apply declination cut
     sel = sel[sel['dec_deg'] < Dec_lim]
 
     return sel
@@ -405,10 +408,10 @@ def joinTables(atca_table,vla_table):
 
 def main():
     
-    Flux_lim, Dec_lim, selected_bands,flux_limits = setupSidebar()
+    Flux_lim, Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits = setupSidebar()
 
     ATCAdb= ParseATCA('ATCA Calibrators Database.csv')
-    ATCA_after_cuts = ATCA_cuts(Dec_lim,Flux_lim, selected_bands, flux_limits, ATCAdb)
+    ATCA_after_cuts = ATCA_cuts(Dec_lim,Flux_lim, atca_selected_bands, atca_flux_limits, ATCAdb)
 
     ra_vals = Angle(ATCA_after_cuts["R.A."], unit=u.hourangle)
     dec_vals = Angle(ATCA_after_cuts["Dec."], unit=u.degree)
@@ -421,7 +424,7 @@ def main():
 
     VLAdb = ParseVLA('VLA Calibrator List 2.csv')
 
-    VLA_after_cuts = VLA_cuts(VLAdb,Flux_lim, Dec_lim, quality_mode='any')
+    VLA_after_cuts = VLA_cuts(VLAdb, Dec_lim, vla_selected_bands, vla_flux_limits, quality_mode='any', pos_quality='A')
     
     c_vla = SkyCoord(ra=VLA_after_cuts['ra_deg'].values * u.deg,
                    dec=VLA_after_cuts['dec_deg'].values * u.deg,
