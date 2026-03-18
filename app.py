@@ -225,7 +225,7 @@ def ParseVLA(fn):
     VLAdb = pd.DataFrame.from_records(records)
     return VLAdb
 
-def ATCA_cuts(Dec_lim,Flux_lim,selected_bands,flux_limits, ATCAdb):
+def ATCA_cuts(Dec_lim,selected_bands,flux_limits, ATCAdb):
     # --- Dec cut ---
     ATCA_CutDec = ATCAdb[
         Angle(ATCAdb["Dec."], unit=u.deg).deg < Dec_lim
@@ -420,7 +420,7 @@ def main():
     Flux_lim, Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits = setupSidebar()
 
     ATCAdb= ParseATCA('ATCA Calibrators Database.csv')
-    ATCA_after_cuts = ATCA_cuts(Dec_lim,Flux_lim, atca_selected_bands, atca_flux_limits, ATCAdb)
+    ATCA_after_cuts = ATCA_cuts(Dec_lim, atca_selected_bands, atca_flux_limits, ATCAdb)
 
     ra_vals = Angle(ATCA_after_cuts["R.A."], unit=u.hourangle)
     dec_vals = Angle(ATCA_after_cuts["Dec."], unit=u.degree)
