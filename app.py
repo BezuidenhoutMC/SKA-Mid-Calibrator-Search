@@ -52,34 +52,28 @@ def setupSidebar():
     step=1.0
     )
 
-    st.sidebar.subheader("ATCA bands selection")
+    st.sidebar.subheader("Flux selection")
 
-    use_16cm = st.sidebar.checkbox("16 cm", value=False)
-    use_4cm  = st.sidebar.checkbox("4 cm", value=True)
-    use_15mm = st.sidebar.checkbox("15 mm", value=True)
-    use_7mm  = st.sidebar.checkbox("7 mm", value=False)
-    use_3mm  = st.sidebar.checkbox("3 mm", value=False)
+    bands = ["16cm", "4cm", "15mm", "7mm", "3mm"]
+
     selected_bands = []
-    if use_16cm:
-        selected_bands.append("16cm")
-    if use_4cm:
-        selected_bands.append("4cm")
-    if use_15mm:
-        selected_bands.append("15mm")
-    if use_7mm:
-        selected_bands.append("7mm")
-    if use_3mm:
-        selected_bands.append("3mm")
+    flux_limits = {}
 
-    st.sidebar.subheader("Flux limits per band (Jy)")
+    for band in bands:
+        st.sidebar.markdown(f"**{band}**")
+        use_band = st.sidebar.checkbox(f"{band}", value=(band in ["16cm", "4cm"]))
 
-    flux_limits = {
-    "16cm": st.sidebar.number_input("16 cm", min_value=0.0, value=1.0, step=0.1),
-    "4cm":  st.sidebar.number_input("4 cm",  min_value=0.0, value=1.0, step=0.1),
-    "15mm": st.sidebar.number_input("15 mm", min_value=0.0, value=1.0, step=0.1),
-    "7mm":  st.sidebar.number_input("7 mm",  min_value=0.0, value=1.0, step=0.1),
-    "3mm":  st.sidebar.number_input("3 mm",  min_value=0.0, value=1.0, step=0.1),
-}
+        if use_band:
+            selected_bands.append(band)
+
+            flux_limits[band] = st.sidebar.number_input(
+                f"{band} flux limit (Jy)",
+                min_value=0.0,
+                value=1.0,
+                step=0.1,
+                key=f"{band}_flux"
+            )
+    }
 
     return Flux_lim, Dec_lim, selected_bands, flux_limits
 
