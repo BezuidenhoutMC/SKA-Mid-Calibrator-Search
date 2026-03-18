@@ -386,7 +386,7 @@ def plotSkyCoords(ra_rad, dec_rad):
         # Mollweide axes labels
         ax.set_xticklabels(ax.get_xticklabels(), color="white")
         ax.set_yticklabels(ax.get_yticklabels(), color="white")
-        ax.invert_xaxis()
+        # ax.invert_xaxis()
 
         # --- Title ---
         ax.set_title("Calibrators After Cuts", color="white", pad=20)
