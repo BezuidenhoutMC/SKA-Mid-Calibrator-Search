@@ -304,14 +304,14 @@ def VLA_cuts(VLAdb, Dec_lim, vla_selected_bands, vla_flux_limits, vla_pos_qualit
     # -------------------------
     # Build quality pivot
     # -------------------------
-    def band_has_PS(row):
+    def amplitude_closer_quality(row):
         if quality_mode.lower() == 'any':
             return any((row.get(col) in vla_ampq) for col in ['A','B','C','D'])
         else:
             col = quality_mode.upper()
-            return row.get(col) in good
+            return row.get(col) in vla_ampq
 
-    VLAdb['quality_PS'] = VLAdb.apply(band_has_PS, axis=1)
+    VLAdb['quality_PS'] = VLAdb.apply(amplitude_closer_quality, axis=1)
     quality_pivot = VLAdb.pivot_table(
         index='name', columns='receiver', values='quality_PS', aggfunc='max'
     ).fillna(False)
