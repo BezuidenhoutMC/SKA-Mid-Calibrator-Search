@@ -273,6 +273,77 @@ def plotSkyCoords(ra_rad,dec_rad):
     except Exception as e:
         st.error(f"Error plotting ATCA after cuts: {e}")
 
+def joinTables(atca_table,vla_table):
+    atca = pd.DataFrame.copy(atca_table)
+    vla = pd.DataFrame.copy(vla_table)
+
+    # -------------------------
+    # Clean VLA table
+    # -------------------------
+    vla = vla.reset_index()          # move name from index to column
+    vla['name'] = vla['name'].str.replace('"','').str.strip()
+
+    # keep flux columns
+    vla = vla[['name','ra_deg','dec_deg','flux_C','flux_X','flux_U']]
+
+
+    # -------------------------
+    # Clean ATCA table
+    # -------------------------
+    # rename columns
+    atca = atca.rename(columns={
+        'Name':'name',
+        'R.A.':'ra',
+        'Dec.':'dec'
+    })
+
+    # convert RA/Dec to degrees
+    coords = SkyCoord(atca['ra'], atca['dec'], unit=(u.hourangle, u.deg), frame='icrs')
+
+    atca['ra_deg'] = coords.ra.deg
+    atca['dec_deg'] = coords.dec.deg
+
+    atca['name'] = atca['name'].str.strip()
+
+    # rename ATCA flux columns to consistent names
+    atca = atca.rename(columns={
+        '4cm':'flux_4cm',
+        '15mm':'flux_15mm'
+    })
+
+    # keep flux columns
+    atca = atca[['name','ra_deg','dec_deg','flux_4cm','flux_15mm']]
+
+
+    # -------------------------
+    # Align column sets
+    # -------------------------
+    # ensure both tables contain the same columns
+    for col in ['flux_C','flux_X','flux_U']:
+        if col not in atca:
+            atca[col] = np.nan
+
+    for col in ['flux_4cm','flux_15mm']:
+        if col not in vla:
+            vla[col] = np.nan
+
+    # reorder columns consistently
+    cols = ['name','ra_deg','dec_deg','flux_4cm','flux_15mm','flux_C','flux_X','flux_U']
+
+    atca = atca[cols]
+    vla = vla[cols]
+
+
+    # -------------------------
+    # Merge catalogs
+    # -------------------------
+    calibrators = pd.concat([atca, vla], ignore_index=True)
+
+    # remove duplicates by source name
+    calibrators = calibrators.drop_duplicates(subset='name')
+
+    return calibrators
+
 def main():
     st.sidebar.header("Filter settings")
 
@@ -284,12 +355,12 @@ def main():
     step=1.0
     )
 
-    Flux_lim = st.sidebar.slider(
+    Flux_lim = st.sidebar.number_input(
     "Minimum Flux (Jy)",
     min_value=0.0,
     max_value = 100.0,
     value=5.0,
-    step=0.1
+    step=1.0
     )
 
     ATCAdb= ParseATCA('ATCA Calibrators Database.csv')
@@ -315,5 +386,13 @@ def main():
     dec_vla_rad = c_vla.dec.radian
     plotSkyCoords(ra_vla_rad,dec_vla_rad)
     st.success(f"{len(VLA_after_cuts)} VLA sources after Flux & Dec cuts")
+
+    joint_cal_list = joinTables(ATCA_after_cuts,VLA_after_cuts)
+    ra_joint_rad = np.radians(joint_cal_list['ra_deg'].values)
+    dec_joint_rad = np.radians(joint_cal_list['dec_deg'].values)
+    ra_joint_rad = np.remainder(ra_joint_rad + np.pi, 2*np.pi) - np.pi
+
+    plotSkyCoords(ra_joint_rad,dec_joint_rad)
+    st.success(f"{len(joint_cal_list)} joint sources after Flux & Dec cuts")
 
 main()
