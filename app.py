@@ -57,6 +57,7 @@ def plotSkyCoords(ra_rad,dec_rad):
         st.pyplot(fig)
         st.success(f"{len(ATCA_CutFlux)} sources after Flux & Dec cuts")
         st.write(ATCA_CutFlux)
+        st.write(ATCA_CutFlux["R.A."])
     except Exception as e:
         st.error(f"Error plotting ATCA after cuts: {e}")
 
