@@ -35,8 +35,7 @@ def ParseATCA(fname):
         st.error(f"Error processing ATCA data: {e}")
 
 def ATCA_cuts(Dec_lim,Flux_lim,ATCAdb):
-    ## Apply Declination & Flux density cuts at 4cm
-    # try: 
+        st.write(ATCAdb)
         ATCA_CutDec = ATCAdb[Angle(ATCAdb["Dec."],unit=u.deg).deg< Dec_lim]
         ATCA_CutFlux = ATCA_CutDec[
             (ATCA_CutDec["4cm"] > Flux_lim) | (ATCA_CutDec["15mm"] > Flux_lim)]
@@ -55,8 +54,6 @@ def plotSkyCoords(ra_rad,dec_rad):
         ax.set_title('ATCA Calibrators (after cut)')
         st.pyplot(fig)
         st.success(f"{len(ATCA_CutFlux)} sources after Flux & Dec cuts")
-        st.write(ATCA_CutFlux)
-        st.write(ATCA_CutFlux["R.A."])
     except Exception as e:
         st.error(f"Error plotting ATCA after cuts: {e}")
 
