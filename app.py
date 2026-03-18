@@ -202,11 +202,11 @@ def ATCA_cuts(Dec_lim,Flux_lim,selected_bands,ATCAdb):
         # No bands selected → don't apply flux cut
         ATCA_CutFlux = ATCA_CutDec
     else:
-        flux_mask = np.zeros(len(ATCA_CutDec), dtype=bool)
+        flux_mask = np.ones(len(ATCA_CutDec), dtype=bool)
 
         for band in selected_bands:
             if band in ATCA_CutDec.columns:
-                flux_mask |= (ATCA_CutDec[band] > Flux_lim)
+                flux_mask &= (ATCA_CutDec[band] > Flux_lim)
 
         ATCA_CutFlux = ATCA_CutDec[flux_mask]
 
