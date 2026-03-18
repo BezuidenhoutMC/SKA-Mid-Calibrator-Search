@@ -33,6 +33,46 @@ def dec_to_deg(dec_str):
     d, m, sec = map(float, nums[:3])
     return sign * (d + m/60.0 + sec/3600.0)
 
+def setupSidebar():
+    st.sidebar.header("Filter settings")
+
+    Dec_lim = st.sidebar.number_input(
+    "Minimum Declination (deg)",
+    min_value=-90.0,
+    max_value=90.0,
+    value=30.0,
+    step=1.0
+    )
+
+    Flux_lim = st.sidebar.number_input(
+    "Minimum Flux (Jy)",
+    min_value=0.0,
+    max_value = 100.0,
+    value=5.0,
+    step=1.0
+    )
+
+    st.sidebar.subheader("Flux band selection")
+
+    use_16cm = st.sidebar.checkbox("16 cm", value=True)
+    use_4cm  = st.sidebar.checkbox("4 cm", value=True)
+    use_15mm = st.sidebar.checkbox("15 mm", value=False)
+    use_7mm  = st.sidebar.checkbox("7 mm", value=False)
+    use_3mm  = st.sidebar.checkbox("3 mm", value=False)
+    selected_bands = []
+    if use_16cm:
+        selected_bands.append("16cm")
+    if use_4cm:
+        selected_bands.append("4cm")
+    if use_15mm:
+        selected_bands.append("15mm")
+    if use_7mm:
+        selected_bands.append("7mm")
+    if use_3mm:
+        selected_bands.append("3mm")
+
+    return Flux_lim, Dec_lim, selected_bands
+
 def ParseATCA(fname):
     try:
         ATCAdb = pd.read_csv(fname)
@@ -151,7 +191,7 @@ def ParseVLA(fn):
     VLAdb = pd.DataFrame.from_records(records)
     return VLAdb
 
-def ATCA_cuts(Dec_lim,Flux_lim,ATCAdb):
+def ATCA_cuts(Dec_lim,Flux_lim,selected_bands,ATCAdb):
     ATCA_CutDec = ATCAdb[Angle(ATCAdb["Dec."],unit=u.deg).deg< Dec_lim]
     ATCA_CutFlux = ATCA_CutDec[
         (ATCA_CutDec["4cm"] > Flux_lim) | (ATCA_CutDec["15mm"] > Flux_lim)]
@@ -345,26 +385,11 @@ def joinTables(atca_table,vla_table):
     return calibrators
 
 def main():
-    st.sidebar.header("Filter settings")
-
-    Dec_lim = st.sidebar.number_input(
-    "Minimum Declination (deg)",
-    min_value=-90.0,
-    max_value=90.0,
-    value=30.0,
-    step=1.0
-    )
-
-    Flux_lim = st.sidebar.number_input(
-    "Minimum Flux (Jy)",
-    min_value=0.0,
-    max_value = 100.0,
-    value=5.0,
-    step=1.0
-    )
+    
+    Flux_lim, Dec_lim, selected_bands = setupSidebar()
 
     ATCAdb= ParseATCA('ATCA Calibrators Database.csv')
-    ATCA_after_cuts = ATCA_cuts(Dec_lim,Flux_lim,ATCAdb)
+    ATCA_after_cuts = ATCA_cuts(Dec_lim,Flux_lim, selected_bands, ATCAdb)
 
     ra_vals = Angle(ATCA_after_cuts["R.A."], unit=u.hourangle)
     dec_vals = Angle(ATCA_after_cuts["Dec."], unit=u.degree)
@@ -373,7 +398,7 @@ def main():
     ra_rad = c.ra.wrap_at(180 * u.deg).radian
     dec_rad = c.dec.radian
 
-    plotSkyCoords(ra_rad,dec_rad)
+    # plotSkyCoords(ra_rad,dec_rad)
 
     VLAdb = ParseVLA('VLA Calibrator List 2.csv')
 
@@ -384,7 +409,7 @@ def main():
                    frame='icrs')
     ra_vla_rad = c_vla.ra.wrap_at(180 * u.deg).radian
     dec_vla_rad = c_vla.dec.radian
-    plotSkyCoords(ra_vla_rad,dec_vla_rad)
+    # plotSkyCoords(ra_vla_rad,dec_vla_rad)
     st.success(f"{len(VLA_after_cuts)} VLA sources after Flux & Dec cuts")
 
     joint_cal_list = joinTables(ATCA_after_cuts,VLA_after_cuts)
