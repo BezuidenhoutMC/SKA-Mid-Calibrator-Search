@@ -83,13 +83,13 @@ def main():
     ATCAdb = ParseATCA('ATCA Calibrators Database.csv')
     ATCA_after_cuts = ATCA_cuts(Dec_lim,Flux_lim,ATCAdb)
 
-    ra_vals = Angle(ATCA_after_cuts["R.A."], unit=u.hourangle)
-    dec_vals = Angle(ATCA_after_cuts["Dec."], unit=u.degree)
+    # ra_vals = Angle(ATCA_after_cuts["R.A."], unit=u.hourangle)
+    # dec_vals = Angle(ATCA_after_cuts["Dec."], unit=u.degree)
 
-    c = SkyCoord(ra=ra_vals, dec=dec_vals, frame='icrs')
-    ra_rad = c.ra.wrap_at(180 * u.deg).radian
-    dec_rad = c.dec.radian
+    # c = SkyCoord(ra=ra_vals, dec=dec_vals, frame='icrs')
+    # ra_rad = c.ra.wrap_at(180 * u.deg).radian
+    # dec_rad = c.dec.radian
 
-    plotSkyCoords(ra_rad,dec_rad)
+    # plotSkyCoords(ra_rad,dec_rad)
 
 main()
