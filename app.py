@@ -54,9 +54,9 @@ def setupSidebar():
 
     st.sidebar.subheader("Flux band selection")
 
-    use_16cm = st.sidebar.checkbox("16 cm", value=True)
+    use_16cm = st.sidebar.checkbox("16 cm", value=False)
     use_4cm  = st.sidebar.checkbox("4 cm", value=True)
-    use_15mm = st.sidebar.checkbox("15 mm", value=False)
+    use_15mm = st.sidebar.checkbox("15 mm", value=True)
     use_7mm  = st.sidebar.checkbox("7 mm", value=False)
     use_3mm  = st.sidebar.checkbox("3 mm", value=False)
     selected_bands = []
@@ -192,14 +192,26 @@ def ParseVLA(fn):
     return VLAdb
 
 def ATCA_cuts(Dec_lim,Flux_lim,selected_bands,ATCAdb):
-    ATCA_CutDec = ATCAdb[Angle(ATCAdb["Dec."],unit=u.deg).deg< Dec_lim]
-    ATCA_CutFlux = ATCA_CutDec[
-        (ATCA_CutDec["4cm"] > Flux_lim) | (ATCA_CutDec["15mm"] > Flux_lim)]
+    # --- Dec cut ---
+    ATCA_CutDec = ATCAdb[
+        Angle(ATCAdb["Dec."], unit=u.deg).deg < Dec_lim
+    ]
+
+    # --- Flux cut ---
+    if len(selected_bands) == 0:
+        # No bands selected → don't apply flux cut
+        ATCA_CutFlux = ATCA_CutDec
+    else:
+        flux_mask = np.zeros(len(ATCA_CutDec), dtype=bool)
+
+        for band in selected_bands:
+            if band in ATCA_CutDec.columns:
+                flux_mask |= (ATCA_CutDec[band] > Flux_lim)
+
+        ATCA_CutFlux = ATCA_CutDec[flux_mask]
+
     st.success(f"{len(ATCA_CutFlux)} sources after Flux & Dec cuts")
     return ATCA_CutFlux
-
-    # except Exception as e:
-    #     st.error(f"Error making ATCA cuts {e}")
 
 def VLA_cuts(VLAdb,Flux_lim, Dec_lim, quality_mode):
         # -------------------------
