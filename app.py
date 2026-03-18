@@ -417,7 +417,7 @@ def joinTables(atca_table,vla_table):
 
 def main():
     
-    Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits = setupSidebar()
+    Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits, vla_pos_quality = setupSidebar()
 
     ATCAdb= ParseATCA('ATCA Calibrators Database.csv')
     ATCA_after_cuts = ATCA_cuts(Dec_lim, atca_selected_bands, atca_flux_limits, ATCAdb)
