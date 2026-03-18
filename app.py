@@ -161,7 +161,7 @@ def ATCA_cuts(Dec_lim,Flux_lim,ATCAdb):
     # except Exception as e:
     #     st.error(f"Error making ATCA cuts {e}")
 
-def VLA_cuts(VLAdb):
+def VLA_cuts(VLAdb,quality_mode):
         # -------------------------
     # Positional certainty filter
     # -------------------------
@@ -306,7 +306,7 @@ def main():
 
     VLAdb = ParseVLA('VLA Calibrator List 2.csv')
 
-    VLA_after_cuts = VLA_cuts(VLAdb)
+    VLA_after_cuts = VLA_cuts(VLAdb,quality_mode='any')
     st.write(len(VLA_after_cuts))
     st.write('VLA AFTER CUTS')
 
