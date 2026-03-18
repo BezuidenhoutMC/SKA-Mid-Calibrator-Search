@@ -50,8 +50,22 @@ except Exception as e:
 
 ## Apply Declination & Flux density cuts at 4cm
 try: 
-    Dec_lim = 40 #deg
-    Flux_lim = 5 #Jy
+    st.sidebar.header("Filter settings")
+
+    Dec_lim = st.sidebar.slider(
+    "Minimum Declination (deg)",
+    min_value=-90.0,
+    max_value=90.0,
+    value=30.0,
+    step=1.0
+)
+
+    Flux_lim = st.sidebar.number_input(
+    "Minimum Flux (Jy)",
+    min_value=0.0,
+    value=5.0,
+    step=0.1
+)
 
     ATCA_CutDec = ATCAdb[Angle(ATCAdb["Dec."],unit=u.deg).deg< Dec_lim]
     ATCA_CutF4cm = ATCA_CutDec[
