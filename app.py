@@ -441,58 +441,57 @@ def joinTables(atca, vla):
     atca['name'] = atca['name'].str.strip()
 
     # ONLY keep selected flux columns
-atca = atca[['name','ra_deg','dec_deg','flux_4cm','flux_15mm']]
-atca['origin_ATCA'] = True
+    atca = atca[['name','ra_deg','dec_deg','flux_4cm','flux_15mm']]
+    atca['origin_ATCA'] = True
 
 
-# -------------------------
-# OPTIONAL: enforce ATCA selection consistency
-# (remove rows missing required fluxes)
-# -------------------------
-atca = atca.dropna(subset=['flux_4cm','flux_15mm'])
+    # -------------------------
+    # OPTIONAL: enforce ATCA selection consistency
+    # (remove rows missing required fluxes)
+    # -------------------------
+    # atca = atca.dropna(subset=['flux_4cm','flux_15mm'])
 
 
-# -------------------------
-# Merge catalogs (CORRECT WAY)
-# -------------------------
-calibrators = pd.merge(
-    atca,
-    vla,
-    on='name',
-    how='outer',
-    suffixes=('_atca','_vla')
-)
+    # -------------------------
+    # Merge catalogs (CORRECT WAY)
+    # -------------------------
+    calibrators = pd.merge(
+        atca,
+        vla,
+        on='name',
+        how='outer',
+        suffixes=('_atca','_vla')
+    )
 
 
-# -------------------------
-# Combine coordinates (prefer ATCA if available)
-# -------------------------
-calibrators['ra_deg'] = calibrators['ra_deg_atca'].combine_first(calibrators['ra_deg_vla'])
-calibrators['dec_deg'] = calibrators['dec_deg_atca'].combine_first(calibrators['dec_deg_vla'])
+    # -------------------------
+    # Combine coordinates (prefer ATCA if available)
+    # -------------------------
+    calibrators['ra_deg'] = calibrators['ra_deg_atca'].combine_first(calibrators['ra_deg_vla'])
+    calibrators['dec_deg'] = calibrators['dec_deg_atca'].combine_first(calibrators['dec_deg_vla'])
 
-calibrators = calibrators.drop(columns=[
-    'ra_deg_atca','ra_deg_vla',
-    'dec_deg_atca','dec_deg_vla'
-])
-
-
-# -------------------------
-# Fill origin flags
-# -------------------------
-calibrators['origin_ATCA'] = calibrators['origin_ATCA'].fillna(False)
-calibrators['origin_VLA'] = calibrators['origin_VLA'].fillna(False)
+    calibrators = calibrators.drop(columns=[
+        'ra_deg_atca','ra_deg_vla',
+        'dec_deg_atca','dec_deg_vla'
+    ])
 
 
-# -------------------------
-# Final column order
-# -------------------------
-calibrators = calibrators[
-    ['name','ra_deg','dec_deg',
-     'flux_4cm','flux_15mm',
-     'flux_C','flux_X','flux_U',
-     'origin_ATCA','origin_VLA']
-]
+    # -------------------------
+    # Fill origin flags
+    # -------------------------
+    calibrators['origin_ATCA'] = calibrators['origin_ATCA'].fillna(False)
+    calibrators['origin_VLA'] = calibrators['origin_VLA'].fillna(False)
 
+
+    # -------------------------
+    # Final column order
+    # -------------------------
+    calibrators = calibrators[
+        ['name','ra_deg','dec_deg',
+        'flux_4cm','flux_15mm',
+        'flux_C','flux_X','flux_U',
+        'origin_ATCA','origin_VLA']
+    ]
 
     return calibrators
 
