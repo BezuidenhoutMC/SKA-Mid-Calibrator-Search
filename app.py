@@ -412,6 +412,8 @@ def plotSkyCoords(ra_rad, dec_rad):
         st.error(f"Error plotting: {e}")
 
 def joinTables(atca, vla, atca_selected_bands,vla_selected_bands):
+    print('-----------------',atca_selected_bands)
+    print('------------------00', vla_selected_bands)
     # -------------------------
     # Clean VLA table
     # -------------------------
