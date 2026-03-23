@@ -187,18 +187,18 @@ def ParseVLA(fn):
         # -------------------------
         if L.startswith('----') or L.startswith('==='):
 
-            # --- ONLY use J2000 ---
-            j2000_hdr = None
+            # --- ONLY use B1950 ---
+            b1950_hdr = None
             for h in cur_headers:
-                if h['frame'] == 'J2000':
-                    j2000_hdr = h
+                if h['frame'] == 'B1950':
+                    b1950_hdr = h
                     break
 
             # clear headers buffer
             cur_headers = []
 
-            # skip if no J2000 entry
-            if j2000_hdr is None:
+            # skip if no B1950 entry
+            if b1950_hdr is None:
                 i += 1
                 continue
 
@@ -232,13 +232,13 @@ def ParseVLA(fn):
 
                     rec = {}
 
-                    # --- J2000 ONLY ---
-                    rec['name'] = j2000_hdr['name']
-                    rec['frame'] = 'J2000'
-                    rec['header_posq'] = j2000_hdr.get('header_posq')
-                    rec['ra'] = j2000_hdr['ra']
-                    rec['dec'] = j2000_hdr['dec']
-                    rec['extra'] = j2000_hdr.get('extra')
+                    # --- B1950 ONLY ---
+                    rec['name'] = b1950_hdr['name']
+                    rec['frame'] = 'B1950'
+                    rec['header_posq'] = b1950_hdr.get('header_posq')
+                    rec['ra'] = b1950_hdr['ra']
+                    rec['dec'] = b1950_hdr['dec']
+                    rec['extra'] = b1950_hdr.get('extra')
 
                     # band info
                     rec['band'] = bd.get('band')
@@ -496,6 +496,8 @@ def main():
     dec_joint_rad = np.radians(joint_cal_list['dec_deg'].values)
     ra_joint_rad = np.remainder(ra_joint_rad + np.pi, 2*np.pi) - np.pi
 
+    st.success(f"{len(joint_cal_list)} combined sources")
+
     plotSkyCoords(ra_joint_rad,dec_joint_rad)
     st.dataframe(joint_cal_list, height=600)    
     csv = joint_cal_list.to_csv(index=False)
@@ -503,8 +505,6 @@ def main():
 
     st.success(f"{len(ATCA_after_cuts)} ATCA sources")
     st.success(f"{len(VLA_after_cuts)} VLA sources")
-    st.success(f"{len(joint_cal_list)} combined sources")
-
 
     st.download_button(
         label="Download calibrator list as CSV",
