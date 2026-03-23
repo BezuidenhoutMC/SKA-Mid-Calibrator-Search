@@ -411,49 +411,46 @@ def plotSkyCoords(ra_rad, dec_rad):
     except Exception as e:
         st.error(f"Error plotting: {e}")
 
-def joinTables(atca, vla):
+def joinTables(atca, vla, atca_selected_bands,vla_selected_bands):
     # -------------------------
     # Clean VLA table
     # -------------------------
     vla = vla.reset_index()
     vla['name'] = vla['name'].str.replace('"','').str.strip()
 
-    vla = vla[['name','ra_deg','dec_deg','flux_C','flux_X','flux_U']]
-    vla['origin_VLA'] = True
+    # -------------------------
+    # Build dynamic flux column names
+    # -------------------------
+    atca_flux_cols = [f'flux_{b}' for b in atca_selected_bands]
+    vla_flux_cols  = [f'flux_{b}' for b in vla_selected_bands]
+
+    all_flux_cols = atca_flux_cols + vla_flux_cols
 
 
     # -------------------------
-    # Clean ATCA table
+    # Ensure all columns exist
     # -------------------------
-    atca = atca.rename(columns={
-        'Name':'name',
-        'R.A.':'ra',
-        'Dec.':'dec',
-        '4cm':'flux_4cm',
-        '15mm':'flux_15mm'
-    })
+    for col in atca_flux_cols:
+        if col not in atca:
+            atca[col] = np.nan
 
-    coords = SkyCoord(atca['ra'], atca['dec'], unit=(u.hourangle, u.deg), frame='icrs')
+    for col in vla_flux_cols:
+        if col not in vla:
+            vla[col] = np.nan
 
-    atca['ra_deg'] = coords.ra.deg
-    atca['dec_deg'] = coords.dec.deg
 
-    atca['name'] = atca['name'].str.strip()
+    # -------------------------
+    # Keep only selected columns
+    # -------------------------
+    atca = atca[['name','ra_deg','dec_deg'] + atca_flux_cols]
+    vla  = vla[['name','ra_deg','dec_deg'] + vla_flux_cols]
 
-    # ONLY keep selected flux columns
-    atca = atca[['name','ra_deg','dec_deg','flux_4cm','flux_15mm']]
     atca['origin_ATCA'] = True
+    vla['origin_VLA']   = True
 
 
     # -------------------------
-    # OPTIONAL: enforce ATCA selection consistency
-    # (remove rows missing required fluxes)
-    # -------------------------
-    # atca = atca.dropna(subset=['flux_4cm','flux_15mm'])
-
-
-    # -------------------------
-    # Merge catalogs (CORRECT WAY)
+    # Merge catalogs
     # -------------------------
     calibrators = pd.merge(
         atca,
@@ -465,7 +462,7 @@ def joinTables(atca, vla):
 
 
     # -------------------------
-    # Combine coordinates (prefer ATCA if available)
+    # Combine coordinates
     # -------------------------
     calibrators['ra_deg'] = calibrators['ra_deg_atca'].combine_first(calibrators['ra_deg_vla'])
     calibrators['dec_deg'] = calibrators['dec_deg_atca'].combine_first(calibrators['dec_deg_vla'])
@@ -479,18 +476,15 @@ def joinTables(atca, vla):
     # -------------------------
     # Fill origin flags
     # -------------------------
-    calibrators['origin_ATCA'] = calibrators['origin_ATCA'].fillna(False)
-    calibrators['origin_VLA'] = calibrators['origin_VLA'].fillna(False)
+    calibrators['origin_ATCA'] = calibrators.get('origin_ATCA', False).fillna(False)
+    calibrators['origin_VLA']  = calibrators.get('origin_VLA', False).fillna(False)
 
 
     # -------------------------
-    # Final column order
+    # FINAL COLUMN ORDER (dynamic!)
     # -------------------------
     calibrators = calibrators[
-        ['name','ra_deg','dec_deg',
-        'flux_4cm','flux_15mm',
-        'flux_C','flux_X','flux_U',
-        'origin_ATCA','origin_VLA']
+        ['name','ra_deg','dec_deg'] + all_flux_cols + ['origin_ATCA','origin_VLA']
     ]
 
     return calibrators
@@ -506,7 +500,7 @@ def main():
 
     VLA_after_cuts = VLA_cuts(VLAdb, Dec_lim, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode)
     
-    joint_cal_list = joinTables(ATCA_after_cuts,VLA_after_cuts)
+    joint_cal_list = joinTables(ATCA_after_cuts,VLA_after_cuts,atca_selected_bands,vla_selected_bands)
     ra_joint_rad = np.radians(joint_cal_list['ra_deg'].values)
     dec_joint_rad = np.radians(joint_cal_list['dec_deg'].values)
     ra_joint_rad = np.remainder(ra_joint_rad + np.pi, 2*np.pi) - np.pi
