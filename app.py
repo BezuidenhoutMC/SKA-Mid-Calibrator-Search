@@ -412,47 +412,47 @@ def plotSkyCoords(ra_rad, dec_rad):
         st.error(f"Error plotting: {e}")
 
 def joinTables(atca, vla, atca_selected_bands,vla_selected_bands):
-    print('-----------------',atca_selected_bands)
-    print('------------------00', vla_selected_bands)
     # -------------------------
     # Clean VLA table
     # -------------------------
     vla = vla.reset_index()
     vla['name'] = vla['name'].str.replace('"','').str.strip()
 
-    # -------------------------
-    # Build dynamic flux column names
-    # -------------------------
-    atca_flux_cols = [f'flux_{b}' for b in atca_selected_bands]
-    vla_flux_cols  = [f'flux_{b}' for b in vla_selected_bands]
+    # Rename VLA flux columns to consistent naming if needed
+    vla = vla.rename(columns={band: f"flux_{band}" for band in vla_selected_bands})
 
-    all_flux_cols = atca_flux_cols + vla_flux_cols
-
-
-    # -------------------------
-    # Ensure all columns exist
-    # -------------------------
-    for col in atca_flux_cols:
-        if col not in atca:
-            atca[col] = np.nan
-
-    for col in vla_flux_cols:
-        if col not in vla:
-            vla[col] = np.nan
+    # Keep only name, coords, selected fluxes
+    vla = vla[['name','ra_deg','dec_deg'] + [f"flux_{b}" for b in vla_selected_bands]]
+    vla['origin_VLA'] = True
 
 
     # -------------------------
-    # Keep only selected columns
+    # Clean ATCA table
     # -------------------------
-    atca = atca[['name','ra_deg','dec_deg'] + atca_flux_cols]
-    vla  = vla[['name','ra_deg','dec_deg'] + vla_flux_cols]
+    atca = atca.rename(columns={
+        'Name':'name',
+        'R.A.':'ra',
+        'Dec.':'dec'
+    })
 
+    coords = SkyCoord(atca['ra'], atca['dec'], unit=(u.hourangle, u.deg), frame='icrs')
+    atca['ra_deg'] = coords.ra.deg
+    atca['dec_deg'] = coords.dec.deg
+    atca['name'] = atca['name'].str.strip()
+
+    # Rename flux columns dynamically
+    atca = atca.rename(columns={band: f"flux_{band}" for band in atca_selected_bands})
+
+    # Keep only name, coords, selected fluxes
+    atca = atca[['name','ra_deg','dec_deg'] + [f"flux_{b}" for b in atca_selected_bands]]
     atca['origin_ATCA'] = True
-    vla['origin_VLA']   = True
+
+    # Optional: drop rows where required flux columns are missing
+    atca = atca.dropna(subset=[f"flux_{b}" for b in atca_selected_bands])
 
 
     # -------------------------
-    # Merge catalogs
+    # Merge catalogs dynamically
     # -------------------------
     calibrators = pd.merge(
         atca,
@@ -464,30 +464,29 @@ def joinTables(atca, vla, atca_selected_bands,vla_selected_bands):
 
 
     # -------------------------
-    # Combine coordinates
+    # Combine coordinates (prefer ATCA if available)
     # -------------------------
     calibrators['ra_deg'] = calibrators['ra_deg_atca'].combine_first(calibrators['ra_deg_vla'])
     calibrators['dec_deg'] = calibrators['dec_deg_atca'].combine_first(calibrators['dec_deg_vla'])
-
-    calibrators = calibrators.drop(columns=[
-        'ra_deg_atca','ra_deg_vla',
-        'dec_deg_atca','dec_deg_vla'
-    ])
+    calibrators = calibrators.drop(columns=['ra_deg_atca','ra_deg_vla','dec_deg_atca','dec_deg_vla'])
 
 
     # -------------------------
     # Fill origin flags
     # -------------------------
-    calibrators['origin_ATCA'] = calibrators.get('origin_ATCA', False).fillna(False)
-    calibrators['origin_VLA']  = calibrators.get('origin_VLA', False).fillna(False)
+    calibrators['origin_ATCA'] = calibrators['origin_ATCA'].fillna(False)
+    calibrators['origin_VLA'] = calibrators['origin_VLA'].fillna(False)
 
 
     # -------------------------
-    # FINAL COLUMN ORDER (dynamic!)
+    # Final column order (dynamic)
     # -------------------------
-    calibrators = calibrators[
-        ['name','ra_deg','dec_deg'] + all_flux_cols + ['origin_ATCA','origin_VLA']
-    ]
+    final_cols = ['name','ra_deg','dec_deg'] + \
+                [f"flux_{b}" for b in atca_selected_bands] + \
+                [f"flux_{b}" for b in vla_selected_bands] + \
+                ['origin_ATCA','origin_VLA']
+
+    calibrators = calibrators[final_cols]
 
     return calibrators
 
