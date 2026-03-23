@@ -165,87 +165,97 @@ def ParseVLA(fn):
         r'.*$'
     )
 
-    records = []           # each will be a dict: name, frame, ra, dec, band, receiver, A,B,C,D,flux,header_posq,extra
-    cur_headers = []       # accumulate header lines until separator
+    records = []
+    cur_headers = []
     i = 0
     n_lines = len(lines)
 
     while i < n_lines:
         L = lines[i].rstrip()
-        # collect header lines until we hit a dashed separator
+
+        # -------------------------
+        # Collect header lines
+        # -------------------------
         m = hdr_re.match(L)
         if m:
             cur_headers.append(m.groupdict())
             i += 1
-            # continue collecting possible second header (B1950 or J2000)
-            # do not finalize until we see the dashed separator line
             continue
 
-        # dashed separator indicates end of header block and that band table follows
+        # -------------------------
+        # Separator → process block
+        # -------------------------
         if L.startswith('----') or L.startswith('==='):
-            # select J2000 header if present, else B1950, else skip
+
+            # --- ONLY use J2000 ---
             j2000_hdr = None
-            b1950_hdr = None
             for h in cur_headers:
                 if h['frame'] == 'J2000':
                     j2000_hdr = h
-                elif h['frame'] == 'B1950':
-                    b1950_hdr = h
-            chosen_hdr = j2000_hdr or b1950_hdr
+                    break
 
             # clear headers buffer
             cur_headers = []
 
-            # move to the next lines which will likely include BAND heading and = lines; skip those
+            # skip if no J2000 entry
+            if j2000_hdr is None:
+                i += 1
+                continue
+
+            # skip BAND header lines
             i += 1
-            while i < n_lines and (lines[i].strip().upper().startswith('BAND') or set(lines[i].strip()) <= set('= ')):
+            while i < n_lines and (
+                lines[i].strip().upper().startswith('BAND') or
+                set(lines[i].strip()) <= set('= ')
+            ):
                 i += 1
 
-            # now parse band lines until blank or until next header/separator
+            # -------------------------
+            # Parse band rows
+            # -------------------------
             while i < n_lines:
                 line2 = lines[i].rstrip()
+
                 if line2.strip() == "":
                     i += 1
                     break
-                # if we hit a new header line, break (it will be consumed in main loop)
+
                 if hdr_re.match(line2):
                     break
-                # if we hit a dashed separator for next source, break to outer loop to handle it
+
                 if line2.startswith('----') or line2.startswith('==='):
                     break
-                bm = band_re.match(line2)
-                if bm and chosen_hdr:
-                    bd = bm.groupdict()
-                    rec = {}
-                    # Record header-sourced info (prefer J2000 name; but we keep both name/frame if you want)
-                    rec['name_j2000'] = chosen_hdr['name'] if chosen_hdr['frame']=='J2000' else None
-                    rec['name_b1950'] = chosen_hdr['name'] if chosen_hdr['frame']=='B1950' else None
-                    # For convenience keep a canonical name: if J2000 name exists prefer that, else B1950
-                    rec['name'] = rec['name_j2000'] or rec['name_b1950'] or chosen_hdr.get('name')
-                    rec['frame'] = chosen_hdr['frame']
-                    rec['header_posq'] = chosen_hdr.get('header_posq')
-                    rec['ra'] = chosen_hdr['ra']
-                    rec['dec'] = chosen_hdr['dec']
-                    rec['extra'] = chosen_hdr.get('extra')
 
-                    # band-level fields
+                bm = band_re.match(line2)
+                if bm:
+                    bd = bm.groupdict()
+
+                    rec = {}
+
+                    # --- J2000 ONLY ---
+                    rec['name'] = j2000_hdr['name']
+                    rec['frame'] = 'J2000'
+                    rec['header_posq'] = j2000_hdr.get('header_posq')
+                    rec['ra'] = j2000_hdr['ra']
+                    rec['dec'] = j2000_hdr['dec']
+                    rec['extra'] = j2000_hdr.get('extra')
+
+                    # band info
                     rec['band'] = bd.get('band')
                     rec['receiver'] = bd.get('receiver')
                     rec['A'] = bd.get('A')
                     rec['B'] = bd.get('B')
                     rec['C'] = bd.get('C')
                     rec['D'] = bd.get('D')
-                    # flux might be missing -> keep as NaN
+
                     rec['flux'] = float(bd['flux']) if bd.get('flux') not in (None, '') else np.nan
-                    # print(rec)
+
                     records.append(rec)
 
-                # move to next band line
                 i += 1
-            # continue outer loop
+
             continue
 
-        # otherwise nothing matched: advance
         i += 1
 
     VLAdb = pd.DataFrame.from_records(records)
