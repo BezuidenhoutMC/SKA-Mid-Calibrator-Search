@@ -411,72 +411,88 @@ def plotSkyCoords(ra_rad, dec_rad):
     except Exception as e:
         st.error(f"Error plotting: {e}")
 
-def joinTables(atca_table, vla_table):
-    atca = pd.DataFrame.copy(atca_table)
-    vla = pd.DataFrame.copy(vla_table)
-
+def joinTables(atca, vla):
     # -------------------------
     # Clean VLA table
     # -------------------------
     vla = vla.reset_index()
     vla['name'] = vla['name'].str.replace('"','').str.strip()
 
+    vla = vla[['name','ra_deg','dec_deg','flux_C','flux_X','flux_U']]
+    vla['origin_VLA'] = True
+
+
     # -------------------------
     # Clean ATCA table
     # -------------------------
     atca = atca.rename(columns={
-        'Name': 'name',
-        'R.A.': 'ra',
-        'Dec.': 'dec'
+        'Name':'name',
+        'R.A.':'ra',
+        'Dec.':'dec',
+        '4cm':'flux_4cm',
+        '15mm':'flux_15mm'
     })
 
-    coords = SkyCoord(atca['ra'], atca['dec'],
-                      unit=(u.hourangle, u.deg), frame='icrs')
+    coords = SkyCoord(atca['ra'], atca['dec'], unit=(u.hourangle, u.deg), frame='icrs')
 
     atca['ra_deg'] = coords.ra.deg
     atca['dec_deg'] = coords.dec.deg
 
     atca['name'] = atca['name'].str.strip()
 
-    # Rename ATCA flux columns dynamically
-    for col in atca.columns:
-        if col in ["16cm", "4cm", "15mm", "7mm", "3mm"]:
-            atca = atca.rename(columns={col: f"flux_{col}"})
+    # ONLY keep selected flux columns
+atca = atca[['name','ra_deg','dec_deg','flux_4cm','flux_15mm']]
+atca['origin_ATCA'] = True
 
-    # -------------------------
-    # Identify columns
-    # -------------------------
-    base_cols = ['name', 'ra_deg', 'dec_deg']
 
-    atca_flux_cols = [c for c in atca.columns if c.startswith("flux_")]
-    vla_flux_cols  = [c for c in vla.columns  if c.startswith("flux_")]
+# -------------------------
+# OPTIONAL: enforce ATCA selection consistency
+# (remove rows missing required fluxes)
+# -------------------------
+atca = atca.dropna(subset=['flux_4cm','flux_15mm'])
 
-    all_flux_cols = sorted(set(atca_flux_cols + vla_flux_cols))
 
-    # -------------------------
-    # Ensure both tables have same columns
-    # -------------------------
-    for col in all_flux_cols:
-        if col not in atca:
-            atca[col] = np.nan
-        if col not in vla:
-            vla[col] = np.nan
+# -------------------------
+# Merge catalogs (CORRECT WAY)
+# -------------------------
+calibrators = pd.merge(
+    atca,
+    vla,
+    on='name',
+    how='outer',
+    suffixes=('_atca','_vla')
+)
 
-    # -------------------------
-    # Keep only relevant columns
-    # -------------------------
-    final_cols = base_cols + all_flux_cols
 
-    atca = atca[final_cols]
-    vla  = vla[final_cols]
+# -------------------------
+# Combine coordinates (prefer ATCA if available)
+# -------------------------
+calibrators['ra_deg'] = calibrators['ra_deg_atca'].combine_first(calibrators['ra_deg_vla'])
+calibrators['dec_deg'] = calibrators['dec_deg_atca'].combine_first(calibrators['dec_deg_vla'])
 
-    # -------------------------
-    # Merge catalogs
-    # -------------------------
-    calibrators = pd.concat([atca, vla], ignore_index=True)
+calibrators = calibrators.drop(columns=[
+    'ra_deg_atca','ra_deg_vla',
+    'dec_deg_atca','dec_deg_vla'
+])
 
-    # remove duplicates by source name
-    calibrators = calibrators.drop_duplicates(subset='name')
+
+# -------------------------
+# Fill origin flags
+# -------------------------
+calibrators['origin_ATCA'] = calibrators['origin_ATCA'].fillna(False)
+calibrators['origin_VLA'] = calibrators['origin_VLA'].fillna(False)
+
+
+# -------------------------
+# Final column order
+# -------------------------
+calibrators = calibrators[
+    ['name','ra_deg','dec_deg',
+     'flux_4cm','flux_15mm',
+     'flux_C','flux_X','flux_U',
+     'origin_ATCA','origin_VLA']
+]
+
 
     return calibrators
 
@@ -497,14 +513,12 @@ def main():
     ra_joint_rad = np.remainder(ra_joint_rad + np.pi, 2*np.pi) - np.pi
 
     st.success(f"{len(joint_cal_list)} combined sources")
+    st.success(f"{len(ATCA_after_cuts)} ATCA sources")
+    st.success(f"{len(VLA_after_cuts)} VLA sources")
 
     plotSkyCoords(ra_joint_rad,dec_joint_rad)
     st.dataframe(joint_cal_list, height=600)    
     csv = joint_cal_list.to_csv(index=False)
-
-
-    st.success(f"{len(ATCA_after_cuts)} ATCA sources")
-    st.success(f"{len(VLA_after_cuts)} VLA sources")
 
     st.download_button(
         label="Download calibrator list as CSV",
