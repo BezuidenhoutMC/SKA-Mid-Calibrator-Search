@@ -491,7 +491,6 @@ def joinTables(atca, vla, atca_selected_bands,vla_selected_bands):
     return calibrators
 
 def conesearch_internal(search_radius, pb_radius, self_radius, calibrators, VLAdb, ATCAdb):
-    # st.text(VLAdb)
 
     ra_calibrators = Angle(calibrators["ra_deg"], unit=u.degree)
     dec_calibrators = Angle(calibrators["dec_deg"], unit=u.degree)
@@ -500,6 +499,7 @@ def conesearch_internal(search_radius, pb_radius, self_radius, calibrators, VLAd
     ra_atca_full = Angle(ATCAdb["R.A."], unit=u.hourangle)
     dec_atca_full = Angle(ATCAdb["Dec."], unit=u.degree)
     coords_atca_full = SkyCoord(ra=ra_atca_full, dec=dec_atca_full)
+    print(VLAdb,'************************')
     ra_vla_full = Angle(VLAdb["ra_deg"], unit=u.degree)
     dec_vla_full = Angle(VLAdb["dec_deg"], unit=u.degree)
     coords_vla_full = SkyCoord(ra=ra_vla_full, dec=dec_vla_full)
@@ -663,9 +663,7 @@ def main():
     search_radius = 2 * u.degree
     pb_radius = 0.4 / 2 * u.degree
     self_radius = 10/3600 * u.degree
-    
-    st.text(VLAdb)
-    st.success('POOP')
+
     if search_radius != 0:
         joint_cal_list = conesearch_internal(search_radius, pb_radius, self_radius, joint_cal_list, VLAdb, ATCAdb)
     
