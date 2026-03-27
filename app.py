@@ -591,6 +591,7 @@ def conesearch_internal(search_radius, pb_radius, self_radius, calibrators, VLAd
                             continue
                         vla_old = confusing_vla_name
                         # Now use flux_pivot to get the fluxes for this confusing VLA source
+                        flux_pivot = VLAdb.pivot_table(index='name', columns='receiver', values='flux', aggfunc='max')
                         flux_C_con = flux_pivot.loc[confusing_vla_name, 'C'] if 'C' in flux_pivot.columns and confusing_vla_name in flux_pivot.index else np.nan
                         flux_U_con = flux_pivot.loc[confusing_vla_name, 'U'] if 'U' in flux_pivot.columns and confusing_vla_name in flux_pivot.index else np.nan
 
