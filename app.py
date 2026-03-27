@@ -490,6 +490,163 @@ def joinTables(atca, vla, atca_selected_bands,vla_selected_bands):
 
     return calibrators
 
+def conesearch_internal(search_radius, pb_radius, self_radius, calibrators, VLAdb, ATCAdb):
+
+    ra_calibrators = Angle(calibrators["ra_deg"], unit=u.degree)
+    dec_calibrators = Angle(calibrators["dec_deg"], unit=u.degree)
+    coords_calibrators = SkyCoord(ra=ra_calibrators, dec=dec_calibrators)
+
+    ra_atca_full = Angle(ATCAdb["R.A."], unit=u.hourangle)
+    dec_atca_full = Angle(ATCAdb["Dec."], unit=u.degree)
+    coords_atca_full = SkyCoord(ra=ra_atca_full, dec=dec_atca_full)
+    ra_vla_full = Angle(VLAdb["ra_deg"], unit=u.degree)
+    dec_vla_full = Angle(VLAdb["dec_deg"], unit=u.degree)
+    coords_vla_full = SkyCoord(ra=ra_vla_full, dec=dec_vla_full)
+    all_coords = np.concatenate((coords_atca_full, coords_vla_full))
+
+    # Iterate through each calibrator in the filtered calibrator list
+    drop_list = []
+    atca_old = ""
+    vla_old = ""
+    src_old = ""
+    for i in range(len(coords_calibrators)):
+
+    # Calculate separation from the current source to all sources in the full ATCAdb+VLAdb
+    separations = coords_calibrators[i].separation(all_coords).to(u.deg)
+
+    # Find indices of sources within the search radius
+    mask_nearby = separations < search_radius
+    self_sep = separations < self_radius
+    mask_nearby_not_self = mask_nearby & ~self_sep
+    # Get the original DataFrame index labels for these nearby sources in ATCAdb
+    nearby_original = all_coords[mask_nearby_not_self]
+    seps_nearby = separations[mask_nearby_not_self].to(u.deg)
+
+    if np.any(nearby_original):
+        for j in range(len(nearby_original)):
+            src = nearby_original[j]
+            # Try to identify if the source is from ATCAdb
+            atca_source_mask = (coords_atca_full == src)
+            myname_atca_series = ATCAdb[atca_source_mask]["Name"]
+
+            vla_source_mask = (coords_vla_full == src)
+            myname_vla_series = VLAdb[vla_source_mask]['name']
+
+            if not myname_atca_series.empty:
+                confusing_atca_name = myname_atca_series.iloc[0] # Get the name string
+                if (confusing_atca_name in atca_old) or (calibrators["name"].iloc[i] in confusing_atca_name):
+                    continue
+                atca_old = confusing_atca_name
+                flux_4cm_con = ATCAdb[atca_source_mask]["4cm"].iloc[0] # Ensure single value
+                flux_15mm_con = ATCAdb[atca_source_mask]["15mm"].iloc[0] # Ensure single value|
+
+                flux_4cm_cal = calibrators["flux_4cm"].iloc[i]
+                flux_15mm_cal = calibrators["flux_15mm"].iloc[i]
+
+                if (np.isnan(flux_4cm_cal) or np.isnan(flux_15mm_cal)):
+                    flux_C_cal = calibrators["flux_C"].iloc[i]
+                    flux_U_cal = calibrators["flux_U"].iloc[i]
+
+                    frac_C = flux_4cm_con / flux_C_cal
+                    frac_U = flux_15mm_con / flux_U_cal
+
+                    print(f"Calibrator {calibrators["name"].iloc[i]} has confusing source "
+                        f"{confusing_atca_name} with separation {seps_nearby[j]:.4f} and flux ratios"
+                        f"(confusing/calibrator) at C band: {frac_C:.4f} and U band: {frac_U:.4f}.\n")
+                    if seps_nearby[j] <= pb_radius:
+                        if (frac_C > 0.1 or frac_U > 0.1):
+                            drop_list.append(i)
+                    elif seps_nearby[j] <= pb_radius * 2:
+                        if (frac_C > 0.2 or frac_U > 0.2):
+                            drop_list.append(i)
+                    else:
+                        if (frac_C > 1 or frac_U > 1):
+                            drop_list.append(i)
+                    continue
+
+                else:
+                    frac_4cm = flux_4cm_con / flux_4cm_cal
+                    frac_15mm = flux_15mm_con / flux_15mm_cal
+
+                    print(f"Calibrator {calibrators["name"].iloc[i]} has confusing source "
+                        f"{confusing_atca_name} with separation {seps_nearby[j]:.4f} and flux ratios "
+                        f"(confusing/calibrator) at 4cm: {frac_4cm:.4f} and 15mm: {frac_15mm:.4f}.\n")
+
+                if seps_nearby[j] <= pb_radius:
+                    if (frac_4cm > 0.1 or frac_15mm > 0.1):
+                        drop_list.append(i)
+                elif seps_nearby[j] <= pb_radius * 2:
+                    if (frac_4cm > 0.2 or frac_15mm > 0.2):
+                        drop_list.append(i)
+                else:
+                    if (frac_4cm > 1 or frac_15mm > 1):
+                        drop_list.append(i)
+
+            else: # If not an ATCA source, it must be a VLA source
+
+                if not myname_vla_series.empty:
+                    confusing_vla_name = myname_vla_series.iloc[0]
+                    if (confusing_vla_name in vla_old) or (calibrators["name"].iloc[i] in confusing_vla_name):
+                        continue
+                    vla_old = confusing_vla_name
+                    # Now use flux_pivot to get the fluxes for this confusing VLA source
+                    flux_C_con = flux_pivot.loc[confusing_vla_name, 'C'] if 'C' in flux_pivot.columns and confusing_vla_name in flux_pivot.index else np.nan
+                    flux_U_con = flux_pivot.loc[confusing_vla_name, 'U'] if 'U' in flux_pivot.columns and confusing_vla_name in flux_pivot.index else np.nan
+
+                    flux_C_cal = calibrators["flux_C"].iloc[i]
+                    flux_U_cal = calibrators["flux_U"].iloc[i]
+
+                if (np.isnan(flux_C_cal) or np.isnan(flux_U_cal)):
+                    flux_4cm_cal = calibrators["flux_4cm"].iloc[i]
+                    flux_15mm_cal = calibrators["flux_15mm"].iloc[i]
+
+                    frac_4cm = flux_C_con / flux_4cm_cal
+                    frac_15mm = flux_U_con / flux_15mm_cal
+
+                    print(f"Calibrator {calibrators["name"].iloc[i]} has confusing source "
+                        "{confusing_vla_name} with separation {seps_nearby[j]:.4f} and flux ratios"
+                        f"(confusing/calibrator) at 4cm: {frac_4cm:.4f} and 15mm: {frac_15mm:.4f}.\n")
+
+                    if seps_nearby[j] <= pb_radius:
+                        if (frac_4cm > 0.1 or frac_15mm > 0.1):
+                            drop_list.append(i)
+                    elif seps_nearby[j] <= pb_radius * 2:
+                        if (frac_4cm > 0.2 or frac_15mm > 0.2):
+                            drop_list.append(i)
+                    else:
+                        if (frac_4cm > 1 or frac_15mm > 1):
+                            drop_list.append(i)
+                    continue
+
+                frac_C = flux_C_con / flux_C_cal
+                frac_U = flux_U_con / flux_U_cal
+
+                print(f"Calibrator {calibrators["name"].iloc[i]} has confusing source "
+                    f"{confusing_vla_name} with separation {seps_nearby[j]:.4f} and flux ratios "
+                    f"(confusing/calibrator) at C band: {frac_C:.4f} and U band: {frac_U:.4f}.\n")
+
+                if seps_nearby[j] <= pb_radius:
+                    if (frac_C > 0.1 or frac_U > 0.1):
+                        drop_list.append(i)
+                elif seps_nearby[j] <= pb_radius * 2:
+                    if (frac_C > 0.2 or frac_U > 0.2):
+                        drop_list.append(i)
+                else:
+                    if (frac_C > 1 or frac_U > 1):
+                    drop_list.append(i)
+
+            else:
+                continue
+
+    if drop_list:
+        print(f"Number of calibrators in 'calbirators' with at least one other calibrator in ATCAdb+VLAdb within {search_radius}: {len(drop_list)}")
+        print(f"Names of these calibrators to drop: {[calibrators["name"].iloc[i] for i in drop_list]}")
+    else:
+        print("No calibrators to drop")
+
+    calibrators = calibrators.drop(calibrators.index[i] for i in drop_list)
+    return calibrators
+
 def main():
     
     Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode = setupSidebar()
@@ -502,6 +659,14 @@ def main():
     VLA_after_cuts = VLA_cuts(VLAdb, Dec_lim, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode)
     
     joint_cal_list = joinTables(ATCA_after_cuts,VLA_after_cuts,atca_selected_bands,vla_selected_bands)
+    
+    search_radius = 2 * u.degree
+    pb_radius = 0.4 / 2 * u.degree
+    self_radius = 10/3600 * u.degree
+    
+    if search_radius != 0:
+        joint_cal_list = conesearch_internal(search_radius, pb_radius, self_radius, joint_cal_list, VLAdb, ATCAdb)
+    
     ra_joint_rad = np.radians(joint_cal_list['ra_deg'].values)
     dec_joint_rad = np.radians(joint_cal_list['dec_deg'].values)
     ra_joint_rad = np.remainder(ra_joint_rad + np.pi, 2*np.pi) - np.pi
@@ -509,6 +674,9 @@ def main():
     st.success(f"{len(joint_cal_list)} combined sources")
     st.success(f"{len(ATCA_after_cuts)} ATCA sources")
     st.success(f"{len(VLA_after_cuts)} VLA sources")
+
+    
+    
 
     plotSkyCoords(ra_joint_rad,dec_joint_rad)
     st.dataframe(joint_cal_list, height=600)    
