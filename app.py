@@ -131,7 +131,21 @@ def setupSidebar():
             ]
         )
 
-    return Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode
+    with st.sidebar.expander("Cone Search", expanded=False): 
+        use_cone = st.checkbox('Internal search', value=False)
+        if use_cone:
+            search_radius = st.number_input(
+                    f"Search Radius (deg)",
+                    min_value=0.0,
+                    value=2.0,
+                    step=0.1,
+                    key="cone search radius"
+                )
+            search_radius = search_radius * u.degree
+        else:
+            search_radius = 0
+
+    return Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode, search_radius
 
 def ParseATCA(fname):
     try:
@@ -676,10 +690,8 @@ def main():
     st.success(f"{len(joint_cal_list)} combined sources")
     st.success(f"{len(ATCA_after_cuts)} ATCA sources")
     st.success(f"{len(VLA_after_cuts)} VLA sources")
-
     
     
-
     plotSkyCoords(ra_joint_rad,dec_joint_rad)
     st.dataframe(joint_cal_list, height=600)    
     csv = joint_cal_list.to_csv(index=False)
