@@ -665,7 +665,7 @@ def conesearch_internal(search_radius, pb_radius, self_radius, calibrators, VLAd
 
 def main():
     
-    Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode = setupSidebar()
+    Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode, search_radius = setupSidebar()
 
     ATCAdb= ParseATCA('ATCA Calibrators Database.csv')
     ATCA_after_cuts = ATCA_cuts(Dec_lim, atca_selected_bands, atca_flux_limits, ATCAdb)
@@ -676,7 +676,7 @@ def main():
     
     joint_cal_list = joinTables(ATCA_after_cuts,VLA_after_cuts,atca_selected_bands,vla_selected_bands)
     
-    search_radius = 2 * u.degree
+    # search_radius = 2 * u.degree
     pb_radius = 0.4 / 2 * u.degree
     self_radius = 10/3600 * u.degree
 
@@ -691,7 +691,7 @@ def main():
     st.success(f"{len(ATCA_after_cuts)} ATCA sources")
     st.success(f"{len(VLA_after_cuts)} VLA sources")
     
-    
+
     plotSkyCoords(ra_joint_rad,dec_joint_rad)
     st.dataframe(joint_cal_list, height=600)    
     csv = joint_cal_list.to_csv(index=False)
