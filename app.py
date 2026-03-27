@@ -632,10 +632,10 @@ def conesearch_internal(search_radius, pb_radius, self_radius, calibrators, VLAd
                             drop_list.append(i)
                     else:
                         if (frac_C > 1 or frac_U > 1):
-                        drop_list.append(i)
+                            drop_list.append(i)
 
-                else:
-                    continue
+        else:
+            continue
 
     if drop_list:
         print(f"Number of calibrators in 'calbirators' with at least one other calibrator in ATCAdb+VLAdb within {search_radius}: {len(drop_list)}")
