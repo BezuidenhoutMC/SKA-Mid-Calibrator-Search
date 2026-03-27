@@ -44,7 +44,7 @@ def setupSidebar():
     step=1.0
     )
 
-    with st.sidebar.expander("ATCA", expanded=True): 
+    with st.sidebar.expander("ATCA", expanded=False): 
         atca_bands = ["16cm", "4cm", "15mm", "7mm", "3mm"]
 
         atca_selected_bands = []
@@ -65,7 +65,7 @@ def setupSidebar():
                     key=f"{band}_flux"
                 )
 
-    with st.sidebar.expander("VLA", expanded=True): 
+    with st.sidebar.expander("VLA", expanded=False): 
         vla_bands = ["P", "L", "C", "X", "U", "K", "Q"]
 
         vla_selected_bands = []
