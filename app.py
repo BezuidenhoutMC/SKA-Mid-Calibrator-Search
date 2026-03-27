@@ -597,47 +597,47 @@ def conesearch_internal(search_radius, pb_radius, self_radius, calibrators, VLAd
                         flux_C_cal = calibrators["flux_C"].iloc[i]
                         flux_U_cal = calibrators["flux_U"].iloc[i]
 
-                    if (np.isnan(flux_C_cal) or np.isnan(flux_U_cal)):
-                        flux_4cm_cal = calibrators["flux_4cm"].iloc[i]
-                        flux_15mm_cal = calibrators["flux_15mm"].iloc[i]
+                        if (np.isnan(flux_C_cal) or np.isnan(flux_U_cal)):
+                            flux_4cm_cal = calibrators["flux_4cm"].iloc[i]
+                            flux_15mm_cal = calibrators["flux_15mm"].iloc[i]
 
-                        frac_4cm = flux_C_con / flux_4cm_cal
-                        frac_15mm = flux_U_con / flux_15mm_cal
+                            frac_4cm = flux_C_con / flux_4cm_cal
+                            frac_15mm = flux_U_con / flux_15mm_cal
+
+                            print(f"Calibrator {calibrators["name"].iloc[i]} has confusing source "
+                                "{confusing_vla_name} with separation {seps_nearby[j]:.4f} and flux ratios"
+                                f"(confusing/calibrator) at 4cm: {frac_4cm:.4f} and 15mm: {frac_15mm:.4f}.\n")
+
+                            if seps_nearby[j] <= pb_radius:
+                                if (frac_4cm > 0.1 or frac_15mm > 0.1):
+                                    drop_list.append(i)
+                            elif seps_nearby[j] <= pb_radius * 2:
+                                if (frac_4cm > 0.2 or frac_15mm > 0.2):
+                                    drop_list.append(i)
+                            else:
+                                if (frac_4cm > 1 or frac_15mm > 1):
+                                    drop_list.append(i)
+                            continue
+
+                        frac_C = flux_C_con / flux_C_cal
+                        frac_U = flux_U_con / flux_U_cal
 
                         print(f"Calibrator {calibrators["name"].iloc[i]} has confusing source "
-                            "{confusing_vla_name} with separation {seps_nearby[j]:.4f} and flux ratios"
-                            f"(confusing/calibrator) at 4cm: {frac_4cm:.4f} and 15mm: {frac_15mm:.4f}.\n")
+                            f"{confusing_vla_name} with separation {seps_nearby[j]:.4f} and flux ratios "
+                            f"(confusing/calibrator) at C band: {frac_C:.4f} and U band: {frac_U:.4f}.\n")
 
                         if seps_nearby[j] <= pb_radius:
-                            if (frac_4cm > 0.1 or frac_15mm > 0.1):
+                            if (frac_C > 0.1 or frac_U > 0.1):
                                 drop_list.append(i)
                         elif seps_nearby[j] <= pb_radius * 2:
-                            if (frac_4cm > 0.2 or frac_15mm > 0.2):
+                            if (frac_C > 0.2 or frac_U > 0.2):
                                 drop_list.append(i)
                         else:
-                            if (frac_4cm > 1 or frac_15mm > 1):
+                            if (frac_C > 1 or frac_U > 1):
                                 drop_list.append(i)
-                        continue
 
-                    frac_C = flux_C_con / flux_C_cal
-                    frac_U = flux_U_con / flux_U_cal
-
-                    print(f"Calibrator {calibrators["name"].iloc[i]} has confusing source "
-                        f"{confusing_vla_name} with separation {seps_nearby[j]:.4f} and flux ratios "
-                        f"(confusing/calibrator) at C band: {frac_C:.4f} and U band: {frac_U:.4f}.\n")
-
-                    if seps_nearby[j] <= pb_radius:
-                        if (frac_C > 0.1 or frac_U > 0.1):
-                            drop_list.append(i)
-                    elif seps_nearby[j] <= pb_radius * 2:
-                        if (frac_C > 0.2 or frac_U > 0.2):
-                            drop_list.append(i)
                     else:
-                        if (frac_C > 1 or frac_U > 1):
-                            drop_list.append(i)
-
-        else:
-            continue
+                        continue
 
     if drop_list:
         print(f"Number of calibrators in 'calbirators' with at least one other calibrator in ATCAdb+VLAdb within {search_radius}: {len(drop_list)}")
