@@ -491,7 +491,7 @@ def joinTables(atca, vla, atca_selected_bands,vla_selected_bands):
     return calibrators
 
 def conesearch_internal(search_radius, pb_radius, self_radius, calibrators, VLAdb, ATCAdb):
-    st.text(calibrators)
+    st.text(VLAdb)
 
     ra_calibrators = Angle(calibrators["ra_deg"], unit=u.degree)
     dec_calibrators = Angle(calibrators["dec_deg"], unit=u.degree)
