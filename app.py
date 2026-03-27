@@ -664,6 +664,7 @@ def main():
     pb_radius = 0.4 / 2 * u.degree
     self_radius = 10/3600 * u.degree
     
+    st.text(VLAdb)
     if search_radius != 0:
         joint_cal_list = conesearch_internal(search_radius, pb_radius, self_radius, joint_cal_list, VLAdb, ATCAdb)
     
