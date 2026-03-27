@@ -491,7 +491,7 @@ def joinTables(atca, vla, atca_selected_bands,vla_selected_bands):
     return calibrators
 
 def conesearch_internal(search_radius, pb_radius, self_radius, calibrators, VLAdb, ATCAdb):
-    print(calibrators,'***************************************************')
+    st.text(calibrators)
     calibrators['ra_deg'] = calibrators['ra'].apply(ra_to_deg)
     calibrators['dec_deg'] = calibrators['dec'].apply(dec_to_deg)
 
