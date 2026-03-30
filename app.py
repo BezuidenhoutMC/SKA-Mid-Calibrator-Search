@@ -6,6 +6,7 @@ import re
 
 from astropy.coordinates import SkyCoord, Angle, search_around_sky
 import astropy.units as u
+from astroquery.utils.tap.core import TapPlus
 
 # --- Page config ---
 st.set_page_config(page_title="SKAO Calibrator Search", layout="wide")
