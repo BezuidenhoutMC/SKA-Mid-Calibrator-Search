@@ -699,10 +699,14 @@ def conesearch_PMN(calibrators):
 
     scale = (atca_freq / PMN_freq) ** -0.7
 
-    PMN_flux_scaled = PMN_flux * scale
-    PMN_gflux_scaled = PMN_gflux * scale
+    PMN_flux_scaled = (PMN_flux * scale).astype(float)
+    PMN_gflux_scaled = (PMN_gflux * scale).astype(float)
 
-    # prefer GFlux if available
+    # convert to numpy arrays (forces pd.NA → np.nan)
+    PMN_flux_scaled = np.asarray(PMN_flux_scaled, dtype=float)
+    PMN_gflux_scaled = np.asarray(PMN_gflux_scaled, dtype=float)
+
+    # use GFlux if finite, else Flux
     PMN_flux_final = np.where(
         np.isfinite(PMN_gflux_scaled),
         PMN_gflux_scaled,
