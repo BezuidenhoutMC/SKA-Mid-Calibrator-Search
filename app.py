@@ -153,13 +153,13 @@ def setupSidebar():
             pb_radius = pb_radius * u.degree
 
             self_radius = st.number_input(
-                    f"Self Radius (deg)",
+                    f"Self Radius (arcsec)",
                     min_value=0.0,
-                    value=10./3600,
-                    step=0.05,
+                    value=10.0,
+                    step=1.0,
                     key="self radius"
                 )
-            self_radius = self_radius * u.degree
+            self_radius = self_radius/3600 * u.degree
         else:
             search_radius = 0
             pb_radius = 0
