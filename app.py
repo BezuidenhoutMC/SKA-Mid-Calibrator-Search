@@ -658,120 +658,153 @@ def conesearch_internal(search_radius, pb_radius, self_radius,
     return calibrators.drop(calibrators.index[drop_indices])
 
 def conesearch_PMN(calibrators):
-    # Query the PMN catalogues on vizier
+
+    # -------------------------
+    # Query PMN catalogues
+    # -------------------------
     tap = TapPlus(url="http://tapvizier.u-strasbg.fr/TAPVizieR/tap")
 
-    job = tap.launch_job("""
-        SELECT *
-        FROM "VIII/38/pmns"
-        WHERE Flux > 100
-        ORDER BY RAJ2000 ASC
-    """)
-    table = job.get_results()
-    PMNS = table.to_pandas()
+    def query_table(table_name):
+        job = tap.launch_job(f"""
+            SELECT *
+            FROM "{table_name}"
+            WHERE Flux > 100
+        """)
+        return job.get_results().to_pandas()
 
-    job = tap.launch_job("""
-        SELECT *
-        FROM "VIII/38/pmnz"
-        WHERE Flux > 100
-        ORDER BY RAJ2000 ASC
-    """)
-    table = job.get_results()
-    PMNZ = table.to_pandas()
+    PMN = pd.concat([
+        query_table("VIII/38/pmns"),
+        query_table("VIII/38/pmnz"),
+        query_table("VIII/38/pmnt"),
+        query_table("VIII/38/pmne")
+    ], ignore_index=True)
 
-    job = tap.launch_job("""
-        SELECT *
-        FROM "VIII/38/pmnt"
-        WHERE Flux > 100
-        ORDER BY RAJ2000 ASC
-    """)
-    table = job.get_results()
-    PMNT = table.to_pandas()
+    # -------------------------
+    # Build PMN SkyCoords
+    # -------------------------
+    coords_PMN = SkyCoord(
+        ra=PMN['RAJ2000'].values * u.deg,
+        dec=PMN['DEJ2000'].values * u.deg,
+        frame='icrs'
+    )
 
-    job = tap.launch_job("""
-        SELECT *
-        FROM "VIII/38/pmne"
-        WHERE Flux > 100
-        ORDER BY RAJ2000 ASC
-    """)
-    table = job.get_results()
-    PMNE = table.to_pandas()
-
-    PMN = pd.concat([PMNS, PMNZ, PMNT, PMNE], ignore_index=True)
-
-    ra_PMN = Angle(PMN['RAJ2000'], unit=u.degree)
-    dec_PMN = Angle(PMN['DEJ2000'], unit=u.degree)
-    coords_PMN = SkyCoord(ra=ra_PMN, dec=dec_PMN, frame='icrs')
-
-    PMN_cat_flux = PMN["Flux"] * 1e-3 #Jy
-    PMN_cat_gflux = PMN["GFlux"] * 1e-3 #Jy
+    # -------------------------
+    # Flux scaling
+    # -------------------------
+    PMN_flux = PMN["Flux"].values * 1e-3
+    PMN_gflux = PMN["GFlux"].values * 1e-3
 
     atca_freq = 5.5e9
-    PMN_freq = 4.850e9
-    PMN_cat_flux_scaled = PMN_cat_flux * (atca_freq / PMN_freq) ** -0.7
-    PMN_cat_gflux_scaled = PMN_cat_gflux * (atca_freq / PMN_freq) ** -0.7
+    PMN_freq = 4.85e9
 
-    ra_cals = Angle(calibrators["ra_deg"], unit=u.degree)
-    dec_cals = Angle(calibrators["dec_deg"], unit=u.degree)
-    coords_cals = SkyCoord(ra=ra_cals, dec=dec_cals, frame='icrs')
+    scale = (atca_freq / PMN_freq) ** -0.7
 
+    PMN_flux_scaled = PMN_flux * scale
+    PMN_gflux_scaled = PMN_gflux * scale
+
+    # prefer GFlux if available
+    PMN_flux_final = np.where(
+        np.isfinite(PMN_gflux_scaled),
+        PMN_gflux_scaled,
+        PMN_flux_scaled
+    )
+
+    # -------------------------
+    # Calibrator coordinates
+    # -------------------------
+    coords_cals = SkyCoord(
+        ra=calibrators["ra_deg"].values * u.deg,
+        dec=calibrators["dec_deg"].values * u.deg,
+        frame='icrs'
+    )
+
+    # -------------------------
+    # Parameters
+    # -------------------------
     thresh_val_pb = 0.05
     thresh_val_out_pb = 0.5
     pb_radius = 0.4 / 2
-    PMN_res = 5 / 60 / 2 # degree
-    radius = 2 # degree
+    PMN_res = 5 / 60 / 2
+    radius = 2.0
 
-    remove_idx = []
-    for i in range(len(ra_cals)):
-        col = 'flux_4cm'
-        ra = ra_cals[i].deg
-        dec = dec_cals[i].deg
-        flux = calibrators[col].iloc[i]
+    remove_mask = np.zeros(len(calibrators), dtype=bool)
+
+    # -------------------------
+    # Main loop (vectorised per calibrator)
+    # -------------------------
+    for i, cal_coord in enumerate(coords_cals):
+
+        # choose flux column
+        flux_4cm = calibrators["flux_4cm"].iloc[i]
+        flux_C = calibrators["flux_C"].iloc[i]
+
+        if not np.isnan(flux_4cm):
+            flux = flux_4cm
+            band_label = "4cm"
+        else:
+            flux = flux_C
+            band_label = "C"
+
         if np.isnan(flux):
-            col = 'flux_C'
-            flux = calibrators[col].iloc[i]
+            continue
 
         thresh = thresh_val_pb * flux
 
-        mask = (
-            (PMN_cat_flux_scaled > thresh) |
-            (pd.notna(PMN_cat_gflux_scaled) & (PMN_cat_gflux_scaled > thresh))
-        )
-        if np.any(mask):
-            remove = False
-            idxs = np.where(mask)[0]
-            # compute separations (degrees) for all masked indices
-            input_coord = SkyCoord(ra=ra*u.deg, dec=dec*u.deg)
-            seps_deg = input_coord.separation(coords_PMN[idxs]).deg
-            order = np.argsort(seps_deg)
-            sorted_idxs = idxs[order]
-            sorted_seps_deg = seps_deg[order]
+        # -------------------------
+        # Pre-filter PMN by flux
+        # -------------------------
+        bright_mask = PMN_flux_final > thresh
+        if not np.any(bright_mask):
+            continue
 
-            for k, sep_deg in zip(sorted_idxs, sorted_seps_deg):
-                if pd.notna(PMN_cat_gflux_scaled.iloc[k]):
-                    PMN_flux = PMN_cat_gflux_scaled.iloc[k]
-                else:
-                    PMN_flux = PMN_cat_flux_scaled.iloc[k]
+        coords_subset = coords_PMN[bright_mask]
+        flux_subset = PMN_flux_final[bright_mask]
+        names_subset = PMN['PMNJ'].values[bright_mask]
 
-                if np.isclose(sep_deg, 0.0, atol=1e-2):
-                    continue
-                else:
-                    if PMN_res < sep_deg < radius:
-                        print(f"Calibrator: {calibrators['name'].iloc[i]}, {col}: {calibrators[col].iloc[i]} Jy")
-                        if PMN_res < sep_deg <= pb_radius:
-                            print(f"Source {PMN['PMNJ'].iloc[k]} = {PMN_flux:.6g} Jy, separation = {sep_deg:.4f} deg. Drop calibrator.")
-                            remove = True
-                        else:
-                            if PMN_flux/flux > thresh_val_out_pb:
-                                print(f"Source {PMN['PMNJ'].iloc[k]} = {PMN_flux:.6g} Jy, separation = {sep_deg:.4f} deg. Drop calibrator.")
-                                remove = True
-                            else:
-                                print(f"Source {PMN['PMNJ'].iloc[k]} = {PMN_flux:.6g} Jy, separation = {sep_deg:.4f} deg. No need to drop calibrator.")
+        # -------------------------
+        # Vectorised separations
+        # -------------------------
+        seps = cal_coord.separation(coords_subset).deg
 
-        if remove:
-            remove_idx.append(i)
+        # apply distance mask
+        valid = (seps > PMN_res) & (seps < radius)
+        if not np.any(valid):
+            continue
 
-    return calibrators.drop(calibrators.index[i] for i in remove_idx)
+        seps = seps[valid]
+        flux_subset = flux_subset[valid]
+        names_subset = names_subset[valid]
+
+        # -------------------------
+        # Compute flux ratios
+        # -------------------------
+        ratios = flux_subset / flux
+
+        # -------------------------
+        # Apply beam conditions
+        # -------------------------
+        cond_pb = (seps <= pb_radius) & (ratios > thresh_val_pb)
+        cond_outer = ((seps > pb_radius) & (seps <= 2 * pb_radius) & (ratios > 0.2))
+        cond_far = (seps > 2 * pb_radius) & (ratios > thresh_val_out_pb)
+
+        if np.any(cond_pb | cond_outer | cond_far):
+            remove_mask[i] = True
+
+            # Optional debug print (can comment out for speed)
+            idx = np.where(cond_pb | cond_outer | cond_far)[0][0]
+            print(
+                f"Calibrator {calibrators['name'].iloc[i]} "
+                f"({band_label}={flux:.2f} Jy) has confusing source "
+                f"{names_subset[idx]} ({flux_subset[idx]:.2f} Jy) "
+                f"at {seps[idx]:.3f} deg → DROP"
+            )
+
+    # -------------------------
+    # Return filtered catalog
+    # -------------------------
+    print(f"Removed {remove_mask.sum()} calibrators due to PMN confusion")
+
+    return calibrators.loc[~remove_mask].reset_index(drop=True)
 
 def main():
     
