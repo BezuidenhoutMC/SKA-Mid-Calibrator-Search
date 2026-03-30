@@ -504,7 +504,7 @@ def joinTables(atca, vla, atca_selected_bands,vla_selected_bands):
 
     return calibrators
 
-def conesearch_fast(search_radius, pb_radius, self_radius,
+def conesearch_internal(search_radius, pb_radius, self_radius,
                     calibrators, VLAdb, ATCAdb):
 
     # -------------------------
