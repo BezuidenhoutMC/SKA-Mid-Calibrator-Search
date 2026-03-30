@@ -177,10 +177,10 @@ def setupSidebar():
                     step=0.05,
                     key="primary beam radius"
                 )
-            pmn_search_radius = pmn_search_radius * u.degree
+            pmn_pb_radius = pmn_pb_radius * u.degree
 
         else:
-            pmn_search_radius = 0
+            pmn_pb_radius = 0
 
     return Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode, search_radius, pb_radius, self_radius, pmn_pb_radius
 
