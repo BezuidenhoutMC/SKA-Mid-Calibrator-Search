@@ -753,7 +753,7 @@ def conesearch_PMN(calibrators):
                         PMN_flux = PMN_cat_gflux_scaled[k]
                     else:
                         PMN_flux = PMN_cat_flux_scaled[k]
-                else:
+                except:
                     print('**************************************************')
                     continue
 
