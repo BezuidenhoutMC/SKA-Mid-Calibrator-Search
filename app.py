@@ -132,8 +132,8 @@ def setupSidebar():
         )
 
     with st.sidebar.expander("Cone Search", expanded=False): 
+        use_cone = st.checkbox('ATCA/VLA Search', value=False)
         st.text('Performs a cone search on all candidate sources against the full ATCA+VLA calibrator catalogues.')
-        use_cone = st.checkbox('Internal search', value=False)
         if use_cone:
             search_radius = st.number_input(
                     f"Search Radius (deg)",
@@ -656,6 +656,120 @@ def conesearch_internal(search_radius, pb_radius, self_radius,
 
     return calibrators.drop(calibrators.index[drop_indices])
 
+def conesearch_PMN(calibrators):
+    # Query the PMN catalogues on vizier
+    tap = TapPlus(url="http://tapvizier.u-strasbg.fr/TAPVizieR/tap")
+
+    job = tap.launch_job("""
+        SELECT *
+        FROM "VIII/38/pmns"
+        WHERE Flux > 100
+        ORDER BY RAJ2000 ASC
+    """)
+    table = job.get_results()
+    PMNS = table.to_pandas()
+
+    job = tap.launch_job("""
+        SELECT *
+        FROM "VIII/38/pmnz"
+        WHERE Flux > 100
+        ORDER BY RAJ2000 ASC
+    """)
+    table = job.get_results()
+    PMNZ = table.to_pandas()
+
+    job = tap.launch_job("""
+        SELECT *
+        FROM "VIII/38/pmnt"
+        WHERE Flux > 100
+        ORDER BY RAJ2000 ASC
+    """)
+    table = job.get_results()
+    PMNT = table.to_pandas()
+
+    job = tap.launch_job("""
+        SELECT *
+        FROM "VIII/38/pmne"
+        WHERE Flux > 100
+        ORDER BY RAJ2000 ASC
+    """)
+    table = job.get_results()
+    PMNE = table.to_pandas()
+
+    PMN = pd.concat([PMNS, PMNZ, PMNT, PMNE], ignore_index=True)
+
+    ra_PMN = Angle(PMN['RAJ2000'], unit=u.degree)
+    dec_PMN = Angle(PMN['DEJ2000'], unit=u.degree)
+    coords_PMN = SkyCoord(ra=ra_PMN, dec=dec_PMN, frame='icrs')
+
+    PMN_cat_flux = PMN["Flux"] * 1e-3 #Jy
+    PMN_cat_gflux = PMN["GFlux"] * 1e-3 #Jy
+
+    atca_freq = 5.5e9
+    PMN_freq = 4.850e9
+    PMN_cat_flux_scaled = PMN_cat_flux * (atca_freq / PMN_freq) ** -0.7
+    PMN_cat_gflux_scaled = PMN_cat_gflux * (atca_freq / PMN_freq) ** -0.7
+
+    ra_cals = Angle(calibrators["ra_deg"], unit=u.degree)
+    dec_cals = Angle(calibrators["dec_deg"], unit=u.degree)
+    coords_cals = SkyCoord(ra=ra_cals, dec=dec_cals, frame='icrs')
+
+    thresh_val_pb = 0.05
+    thresh_val_out_pb = 0.5
+    pb_radius = 0.4 / 2
+    PMN_res = 5 / 60 / 2 # degree
+    radius = 2 # degree
+
+    remove_idx = []
+    for i in range(len(ra_cals)):
+    col = 'flux_4cm'
+    ra = ra_cals[i].deg
+    dec = dec_cals[i].deg
+    flux = calibrators[col].iloc[i]
+    if np.isnan(flux):
+        col = 'flux_C'
+        flux = calibrators[col].iloc[i]
+
+    thresh = thresh_val_pb * flux
+
+    mask = (PMN_cat_flux_scaled > thresh) | (PMN_cat_gflux_scaled > thresh if isinstance(PMN_cat_gflux_scaled, float) else False)
+    if np.any(mask):
+        remove = False
+        idxs = np.where(mask)[0]
+        # compute separations (degrees) for all masked indices
+        input_coord = SkyCoord(ra=ra*u.deg, dec=dec*u.deg)
+        seps_deg = np.array([
+            input_coord.separation(coords_PMN[j]).to(u.degree).value
+            for j in idxs
+        ])
+        order = np.argsort(seps_deg)
+        sorted_idxs = idxs[order]
+        sorted_seps_deg = seps_deg[order]
+
+        for k, sep_deg in zip(sorted_idxs, sorted_seps_deg):
+
+            PMN_flux = PMN_cat_gflux_scaled[k] if PMN_cat_gflux_scaled[k] else PMN_cat_flux_scaled[k]
+
+            if np.isclose(sep_deg, 0.0, atol=1e-2):
+                continue
+            else:
+            if PMN_res < sep_deg < radius:
+                print(f"Calibrator: {calibrators['name'].iloc[i]}, {col}: {calibrators[col].iloc[i]} Jy")
+                if PMN_res < sep_deg <= pb_radius:
+                print(f"Source {PMN['PMNJ'].iloc[k]} = {PMN_flux:.6g} Jy, separation = {sep_deg:.4f} deg. Drop calibrator.")
+                remove = True
+                else:
+                if PMN_flux/flux > thresh_val_out_pb:
+                    print(f"Source {PMN['PMNJ'].iloc[k]} = {PMN_flux:.6g} Jy, separation = {sep_deg:.4f} deg. Drop calibrator.")
+                    remove = True
+                else:
+                    print(f"Source {PMN['PMNJ'].iloc[k]} = {PMN_flux:.6g} Jy, separation = {sep_deg:.4f} deg. No need to drop calibrator.")
+
+    if remove:
+        remove_idx.append(i)
+
+    return calibrators.drop(calibrators.index[i] for i in remove_idx)
+
 def main():
     
     Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode, search_radius, pb_radius, self_radius = setupSidebar()
@@ -673,6 +787,8 @@ def main():
     if search_radius != 0:
         joint_cal_list = conesearch_internal(search_radius, pb_radius, self_radius, joint_cal_list, VLAdb, ATCAdb)
     
+        joint_cal_list = conesearch_PMN(joint_cal_list)
+
     ra_joint_rad = np.radians(joint_cal_list['ra_deg'].values)
     dec_joint_rad = np.radians(joint_cal_list['dec_deg'].values)
     ra_joint_rad = np.remainder(ra_joint_rad + np.pi, 2*np.pi) - np.pi
