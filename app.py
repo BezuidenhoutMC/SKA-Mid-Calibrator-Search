@@ -132,7 +132,7 @@ def setupSidebar():
         )
 
     with st.sidebar.expander("Cone Search", expanded=False): 
-        st.text('Performs a cone search on all calibrators in 'calibrators' against the full ATCA+VLA calibrator catalogues.')
+        st.text('Performs a cone search on all candidate sources against the full ATCA+VLA calibrator catalogues.')
         use_cone = st.checkbox('Internal search', value=False)
         if use_cone:
             search_radius = st.number_input(
