@@ -132,6 +132,7 @@ def setupSidebar():
         )
 
     with st.sidebar.expander("Cone Search", expanded=False): 
+        st.text('Performs a cone search on all calibrators in 'calibrators' against the full ATCA+VLA calibrator catalogues.')
         use_cone = st.checkbox('Internal search', value=False)
         if use_cone:
             search_radius = st.number_input(
@@ -679,7 +680,6 @@ def main():
     st.success(f"{len(joint_cal_list)} combined sources")
     st.success(f"{len(ATCA_after_cuts)} ATCA sources")
     st.success(f"{len(VLA_after_cuts)} VLA sources")
-    
 
     plotSkyCoords(ra_joint_rad,dec_joint_rad)
     st.dataframe(joint_cal_list, height=600)    
