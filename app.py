@@ -722,51 +722,51 @@ def conesearch_PMN(calibrators):
 
     remove_idx = []
     for i in range(len(ra_cals)):
-    col = 'flux_4cm'
-    ra = ra_cals[i].deg
-    dec = dec_cals[i].deg
-    flux = calibrators[col].iloc[i]
-    if np.isnan(flux):
-        col = 'flux_C'
+        col = 'flux_4cm'
+        ra = ra_cals[i].deg
+        dec = dec_cals[i].deg
         flux = calibrators[col].iloc[i]
+        if np.isnan(flux):
+            col = 'flux_C'
+            flux = calibrators[col].iloc[i]
 
-    thresh = thresh_val_pb * flux
+        thresh = thresh_val_pb * flux
 
-    mask = (PMN_cat_flux_scaled > thresh) | (PMN_cat_gflux_scaled > thresh if isinstance(PMN_cat_gflux_scaled, float) else False)
-    if np.any(mask):
-        remove = False
-        idxs = np.where(mask)[0]
-        # compute separations (degrees) for all masked indices
-        input_coord = SkyCoord(ra=ra*u.deg, dec=dec*u.deg)
-        seps_deg = np.array([
-            input_coord.separation(coords_PMN[j]).to(u.degree).value
-            for j in idxs
-        ])
-        order = np.argsort(seps_deg)
-        sorted_idxs = idxs[order]
-        sorted_seps_deg = seps_deg[order]
+        mask = (PMN_cat_flux_scaled > thresh) | (PMN_cat_gflux_scaled > thresh if isinstance(PMN_cat_gflux_scaled, float) else False)
+        if np.any(mask):
+            remove = False
+            idxs = np.where(mask)[0]
+            # compute separations (degrees) for all masked indices
+            input_coord = SkyCoord(ra=ra*u.deg, dec=dec*u.deg)
+            seps_deg = np.array([
+                input_coord.separation(coords_PMN[j]).to(u.degree).value
+                for j in idxs
+                ])
+            order = np.argsort(seps_deg)
+            sorted_idxs = idxs[order]
+            sorted_seps_deg = seps_deg[order]
 
-        for k, sep_deg in zip(sorted_idxs, sorted_seps_deg):
+            for k, sep_deg in zip(sorted_idxs, sorted_seps_deg):
 
-            PMN_flux = PMN_cat_gflux_scaled[k] if PMN_cat_gflux_scaled[k] else PMN_cat_flux_scaled[k]
+                PMN_flux = PMN_cat_gflux_scaled[k] if PMN_cat_gflux_scaled[k] else PMN_cat_flux_scaled[k]
 
-            if np.isclose(sep_deg, 0.0, atol=1e-2):
-                continue
-            else:
-            if PMN_res < sep_deg < radius:
-                print(f"Calibrator: {calibrators['name'].iloc[i]}, {col}: {calibrators[col].iloc[i]} Jy")
-                if PMN_res < sep_deg <= pb_radius:
-                print(f"Source {PMN['PMNJ'].iloc[k]} = {PMN_flux:.6g} Jy, separation = {sep_deg:.4f} deg. Drop calibrator.")
-                remove = True
+                if np.isclose(sep_deg, 0.0, atol=1e-2):
+                    continue
                 else:
-                if PMN_flux/flux > thresh_val_out_pb:
-                    print(f"Source {PMN['PMNJ'].iloc[k]} = {PMN_flux:.6g} Jy, separation = {sep_deg:.4f} deg. Drop calibrator.")
-                    remove = True
-                else:
-                    print(f"Source {PMN['PMNJ'].iloc[k]} = {PMN_flux:.6g} Jy, separation = {sep_deg:.4f} deg. No need to drop calibrator.")
+                    if PMN_res < sep_deg < radius:
+                        print(f"Calibrator: {calibrators['name'].iloc[i]}, {col}: {calibrators[col].iloc[i]} Jy")
+                        if PMN_res < sep_deg <= pb_radius:
+                            print(f"Source {PMN['PMNJ'].iloc[k]} = {PMN_flux:.6g} Jy, separation = {sep_deg:.4f} deg. Drop calibrator.")
+                            remove = True
+                        else:
+                            if PMN_flux/flux > thresh_val_out_pb:
+                                print(f"Source {PMN['PMNJ'].iloc[k]} = {PMN_flux:.6g} Jy, separation = {sep_deg:.4f} deg. Drop calibrator.")
+                                remove = True
+                            else:
+                                print(f"Source {PMN['PMNJ'].iloc[k]} = {PMN_flux:.6g} Jy, separation = {sep_deg:.4f} deg. No need to drop calibrator.")
 
-    if remove:
-        remove_idx.append(i)
+        if remove:
+            remove_idx.append(i)
 
     return calibrators.drop(calibrators.index[i] for i in remove_idx)
 
