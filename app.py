@@ -748,10 +748,14 @@ def conesearch_PMN(calibrators):
             sorted_seps_deg = seps_deg[order]
 
             for k, sep_deg in zip(sorted_idxs, sorted_seps_deg):
-                if PMN_cat_gflux_scaled[k].notna():
-                    PMN_flux = PMN_cat_gflux_scaled[k]
+                try:
+                    if PMN_cat_gflux_scaled[k]:
+                        PMN_flux = PMN_cat_gflux_scaled[k]
+                    else:
+                        PMN_flux = PMN_cat_flux_scaled[k]
                 else:
-                    PMN_flux = PMN_cat_flux_scaled[k]
+                    print('**************************************************')
+                    continue
 
                 if np.isclose(sep_deg, 0.0, atol=1e-2):
                     continue
