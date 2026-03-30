@@ -142,10 +142,30 @@ def setupSidebar():
                     key="cone search radius"
                 )
             search_radius = search_radius * u.degree
+
+            pb_radius = st.number_input(
+                    f"Primary Beam Radius (deg)",
+                    min_value=0.0,
+                    value=0.2,
+                    step=0.05,
+                    key="primary beam radius"
+                )
+            pb_radius = pb_radius * u.degree
+
+            self_radius = st.number_input(
+                    f"Self Radius (deg)",
+                    min_value=0.0,
+                    value=10./3600,
+                    step=0.05,
+                    key="self radius"
+                )
+            self_radius = self_radius * u.degree
         else:
             search_radius = 0
+            pb_radius = 0
+            self_radius = 0
 
-    return Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode, search_radius
+    return Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode, search_radius, pb_radius, self_radius
 
 def ParseATCA(fname):
     try:
@@ -637,7 +657,7 @@ def conesearch_internal(search_radius, pb_radius, self_radius,
 
 def main():
     
-    Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode, search_radius = setupSidebar()
+    Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode, search_radius, pb_radius, self_radius = setupSidebar()
 
     ATCAdb= ParseATCA('ATCA Calibrators Database.csv')
     ATCA_after_cuts = ATCA_cuts(Dec_lim, atca_selected_bands, atca_flux_limits, ATCAdb)
@@ -648,9 +668,6 @@ def main():
     
     joint_cal_list = joinTables(ATCA_after_cuts,VLA_after_cuts,atca_selected_bands,vla_selected_bands)
     
-    # search_radius = 2 * u.degree
-    pb_radius = 0.4 / 2 * u.degree
-    self_radius = 10/3600 * u.degree
 
     if search_radius != 0:
         joint_cal_list = conesearch_internal(search_radius, pb_radius, self_radius, joint_cal_list, VLAdb, ATCAdb)
