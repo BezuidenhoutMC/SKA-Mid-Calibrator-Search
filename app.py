@@ -733,6 +733,7 @@ def conesearch_PMN(calibrators):
 
         thresh = thresh_val_pb * flux
 
+        print('******************************',PMN_cat_gflux_scaled,'*************************')
         mask = (PMN_cat_flux_scaled > thresh) | (PMN_cat_gflux_scaled > thresh if isinstance(PMN_cat_gflux_scaled, float) else False)
         if np.any(mask):
             remove = False
