@@ -733,22 +733,25 @@ def conesearch_PMN(calibrators):
 
         thresh = thresh_val_pb * flux
 
-        mask = (PMN_cat_flux_scaled > thresh) | (PMN_cat_gflux_scaled > thresh if isinstance(PMN_cat_gflux_scaled, float) else False)
+        mask = (
+            (PMN_cat_flux_scaled > thresh) |
+            (pd.notna(PMN_cat_gflux_scaled) & (PMN_cat_gflux_scaled > thresh))
+        )
         if np.any(mask):
             remove = False
             idxs = np.where(mask)[0]
             # compute separations (degrees) for all masked indices
             input_coord = SkyCoord(ra=ra*u.deg, dec=dec*u.deg)
-            seps_deg = np.array([
-                input_coord.separation(coords_PMN[j]).to(u.degree).value
-                for j in idxs
-                ])
+            seps_deg = input_coord.separation(coords_PMN[idxs]).deg
             order = np.argsort(seps_deg)
             sorted_idxs = idxs[order]
             sorted_seps_deg = seps_deg[order]
 
             for k, sep_deg in zip(sorted_idxs, sorted_seps_deg):
-                PMN_flux = PMN_cat_gflux_scaled[k] if PMN_cat_gflux_scaled[k] else PMN_cat_flux_scaled[k]
+                if pd.notna(PMN_cat_gflux_scaled.iloc[k]):
+                    PMN_flux = PMN_cat_gflux_scaled.iloc[k]
+                else:
+                    PMN_flux = PMN_cat_flux_scaled.iloc[k]
 
                 if np.isclose(sep_deg, 0.0, atol=1e-2):
                     continue
