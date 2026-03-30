@@ -167,7 +167,22 @@ def setupSidebar():
             pb_radius = 0
             self_radius = 0
 
-    return Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode, search_radius, pb_radius, self_radius
+        use_pmn_cone = st.checkbox('PMN Search', value=False)
+        st.text('Performs a cone search on all candidate sources against the PMN surveys.')
+        if use_pmn_cone:
+            pmn_pb_radius = st.number_input(
+                    f"Primary Beam Radius (deg)",
+                    min_value=0.0,
+                    value=0.2,
+                    step=0.05,
+                    key="primary beam radius"
+                )
+            pmn_search_radius = pmn_search_radius * u.degree
+
+        else:
+            pmn_search_radius = 0
+
+    return Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode, search_radius, pb_radius, self_radius, pmn_pb_radius
 
 def ParseATCA(fname):
     try:
@@ -657,7 +672,7 @@ def conesearch_internal(search_radius, pb_radius, self_radius,
 
     return calibrators.drop(calibrators.index[drop_indices])
 
-def conesearch_PMN(calibrators):
+def conesearch_PMN(calibrators, pb_radius):
 
     # -------------------------
     # Query PMN catalogues
@@ -727,7 +742,6 @@ def conesearch_PMN(calibrators):
     # -------------------------
     thresh_val_pb = 0.05
     thresh_val_out_pb = 0.5
-    pb_radius = 0.4 / 2
     PMN_res = 5 / 60 / 2
     radius = 2.0
 
@@ -812,7 +826,7 @@ def conesearch_PMN(calibrators):
 
 def main():
     
-    Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode, search_radius, pb_radius, self_radius = setupSidebar()
+    Dec_lim, atca_selected_bands, atca_flux_limits, vla_selected_bands, vla_flux_limits, vla_pos_quality, vla_ampq, quality_mode, search_radius, pb_radius, self_radius, pmn_pb_radius = setupSidebar()
 
     ATCAdb= ParseATCA('ATCA Calibrators Database.csv')
     ATCA_after_cuts = ATCA_cuts(Dec_lim, atca_selected_bands, atca_flux_limits, ATCAdb)
@@ -827,7 +841,8 @@ def main():
     if search_radius != 0:
         joint_cal_list = conesearch_internal(search_radius, pb_radius, self_radius, joint_cal_list, VLAdb, ATCAdb)
     
-        joint_cal_list = conesearch_PMN(joint_cal_list)
+    if pmn_pb_radius != 0:
+        joint_cal_list = conesearch_PMN(joint_cal_list, pmn_pb_radius)
 
     ra_joint_rad = np.radians(joint_cal_list['ra_deg'].values)
     dec_joint_rad = np.radians(joint_cal_list['dec_deg'].values)
